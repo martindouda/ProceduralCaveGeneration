@@ -10,10 +10,11 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField] private Transform m_Exit;
     [SerializeField] private Transform m_PivotsParent;
     [SerializeField] private GameObject m_SpherePrefab;
-
+    [Space(40)]
     [SerializeField] private Vector3 m_Size = new Vector3(10.0f, 10.0f, 10.0f);
     [SerializeField][Range(0.5f, 3.0f)] private float m_SphereRadius = 0.4f;
     [SerializeField][Range(1.0f, 10.0f)] private float m_SpacingLimit = 2.0f;
+    [SerializeField][Range(1, 100)] private int m_NumSamplesBeforeRejection = 30;
 
     private void OnDrawGizmos()
     {
@@ -45,20 +46,20 @@ public class CaveGenerator : MonoBehaviour
     {
         Debug.Log("Generating...");
         PoissonSpheres poissonSpheres = new PoissonSpheres(m_Size, m_SphereRadius, m_SpacingLimit);
-        poissonSpheres.GeneratePoints(30);
+        poissonSpheres.GeneratePoints(m_NumSamplesBeforeRejection);
 
         while (m_PivotsParent.childCount > 0)
         {
             DestroyImmediate(m_PivotsParent.GetChild(0).gameObject);
         }
 
-        Vector3 scale = new Vector3(m_SphereRadius, m_SphereRadius, m_SphereRadius);
-        List<Vector3> points = poissonSpheres.GetPoints();
+        List<PoissonSpheres.Point> points = poissonSpheres.GetPoints();
+        Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
         for (int i = 0; i < points.Count; i++)
         {
             GameObject go = Instantiate(m_SpherePrefab, m_PivotsParent);
-            go.transform.position = points[i];
-            go.transform.localScale = scale;
+            go.transform.position = points[i].pos - toCenterOffset;
+            go.transform.localScale = Vector3.one * points[i].r * 2.0f;
         }
     }
 
