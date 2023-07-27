@@ -9,9 +9,14 @@ public class CaveGeneratorEditor : Editor
         DrawDefaultInspector();
 
         CaveGenerator caveGenerator = (CaveGenerator)target;
+
         if (GUILayout.Button("Generate"))
         {
             caveGenerator.Generate();
+        }
+        if (GUILayout.Button("Delete"))
+        {
+            caveGenerator.Delete();
         }
     }
 }
