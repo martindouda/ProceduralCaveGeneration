@@ -12,16 +12,44 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField] private GameObject m_SpherePrefab;
     [Space(40)]
     [SerializeField] private Vector3 m_Size = new Vector3(10.0f, 10.0f, 10.0f);
-    [SerializeField][Range(0.5f, 3.0f)] private float m_SphereRadius = 0.4f;
+    [SerializeField][Range(0.5f, 5.0f)] private float m_MinSphereRadius = 1.0f;
+    [SerializeField][Range(0.5f, 5.0f)] private float m_MaxSphereRadius = 3.0f;
     [SerializeField][Range(1.0f, 10.0f)] private float m_SpacingLimit = 2.0f;
     [SerializeField][Range(1, 100)] private int m_NumSamplesBeforeRejection = 30;
+    [Space(20)]
+    [SerializeField][Range(1, 10)] private int m_SearchDistance = 5;
+    [SerializeField][Range(10, 100)] private int m_IdealNumOfNearest = 30;
+
+    private float m_GenerationTime = 0.0f;
+
+
+    class Node : IHeapItem<Node>
+    {
+        public int index;
+
+        public Node(int index)
+        {
+            this.index = index;
+        }
+
+        public int HeapIndex { get => index; set => index = value; }
+
+        public int CompareTo(object obj)
+        {
+            Node other = obj as Node;
+            return other.index.CompareTo(index);
+        }
+    }
+
+    Heap<Node> heap = new Heap<Node>(100);
+    public int HeapAddedNum = 0;
 
     private void OnDrawGizmos()
     {
-        Gizmos.color = Color.green;
+        /*Gizmos.color = Color.green;
         Gizmos.DrawWireSphere(m_Entrance.position, m_SphereRadius / 2.0f);
         Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(m_Exit.position, m_SphereRadius / 2.0f);
+        Gizmos.DrawWireSphere(m_Exit.position, m_SphereRadius / 2.0f);*/
 
         /*Gizmos.color = Color.cyan;
         foreach (Transform t in m_Pivots)
@@ -39,14 +67,17 @@ public class CaveGenerator : MonoBehaviour
             return;
         }*/
         
-        Gizmos.DrawLine(m_Entrance.position, m_Exit.position);
+        //Gizmos.DrawLine(m_Entrance.position, m_Exit.position);
     }
 
     public void Generate()
     {
-        Debug.Log("Generating...");
-        PoissonSpheres poissonSpheres = new PoissonSpheres(m_Size, m_SphereRadius, m_SpacingLimit);
+        PoissonSpheres poissonSpheres = new PoissonSpheres(m_Size, m_MinSphereRadius, m_MaxSphereRadius, m_SpacingLimit);
+
+        float time = Time.realtimeSinceStartup;
         poissonSpheres.GeneratePoints(m_NumSamplesBeforeRejection);
+        poissonSpheres.ConnectNearest(m_SearchDistance, m_IdealNumOfNearest);
+        m_GenerationTime = Time.realtimeSinceStartup - time;
 
         while (m_PivotsParent.childCount > 0)
         {
@@ -69,5 +100,10 @@ public class CaveGenerator : MonoBehaviour
         {
             DestroyImmediate(m_PivotsParent.GetChild(0).gameObject);
         }
+    }
+
+    public float GetGenerationTime()
+    {
+        return m_GenerationTime;
     }
 }
