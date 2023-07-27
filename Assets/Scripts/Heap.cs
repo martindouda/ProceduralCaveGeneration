@@ -14,6 +14,18 @@ public class Heap<T> where T : IHeapItem<T>
         m_ItemCount = 0;
     }
 
+    public void Print()
+    {
+        String s = "";
+        HeapTest.Node[] nodes = m_Data as HeapTest.Node[];
+        for (int i = 0; i < m_ItemCount; i++)
+        {
+            s += nodes[i].Value + " ";
+        }
+        Debug.Log(s);
+
+    }
+
     public void Add(T item)
     {
         item.HeapIndex = m_ItemCount;
@@ -48,7 +60,7 @@ public class Heap<T> where T : IHeapItem<T>
         if (item.CompareTo(parentItem) > 0)
         {
             Swap(item, parentItem);
-            SortUp(parentItem);
+            SortUp(item);
         }
     }
 
@@ -56,6 +68,8 @@ public class Heap<T> where T : IHeapItem<T>
     {
         int leftIndex = item.HeapIndex * 2 + 1;
         int rightIndex = item.HeapIndex * 2 + 2;
+
+
 
         if (leftIndex >= m_ItemCount) return;
 
@@ -77,8 +91,8 @@ public class Heap<T> where T : IHeapItem<T>
 
     private void Swap(T i1, T i2)
     {
-        m_Data[i1.HeapIndex] = m_Data[i2.HeapIndex];
-        m_Data[i2.HeapIndex] = m_Data[i1.HeapIndex];
+        m_Data[i1.HeapIndex] = i2;
+        m_Data[i2.HeapIndex] = i1; 
         int temp = i1.HeapIndex;
         i1.HeapIndex = i2.HeapIndex;
         i2.HeapIndex = temp;

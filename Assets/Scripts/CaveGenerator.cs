@@ -84,7 +84,7 @@ public class CaveGenerator : MonoBehaviour
             DestroyImmediate(m_PivotsParent.GetChild(0).gameObject);
         }
 
-        List<PoissonSpheres.Point> points = poissonSpheres.GetPoints();
+        List<PoissonSpheres.Point> points = poissonSpheres.Points;
         Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
         for (int i = 0; i < points.Count; i++)
         {

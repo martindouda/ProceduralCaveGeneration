@@ -20,29 +20,23 @@ public class PoissonSpheres
     private int m_MaxNearest = -9999999;
 
 
-    public class Point : IHeapItem<Point>
+    public List<Point> Points { get => m_Points; }
+
+
+    public class Point
     {
         public Vector3 pos;
         public float r;
         public List<Point> nextList;
 
-        private int m_HeapIndex;
-        
         public Point(Vector3 pos, float r)
         {
             this.pos = pos;
             this.r = r;
-            m_HeapIndex = -1;
             nextList = new List<Point>();
         }
 
-        public int HeapIndex { get => m_HeapIndex; set => m_HeapIndex = value; }
-
-        public int CompareTo(object obj)
-        {
-            Point other = obj as Point;
-            return other.m_HeapIndex.CompareTo(m_HeapIndex);
-        }
+        
     }
 
     public PoissonSpheres(Vector3 size, float minSphereRadius, float maxSphereRadius, float spacingLimit) 
@@ -140,6 +134,29 @@ public class PoissonSpheres
         return true;
     }
 
+    private class NearestPoint : IHeapItem<NearestPoint>
+    {
+        private int m_HeapIndex;
+
+        private int m_PointIndex;
+        private float m_SqrDist;
+
+        public NearestPoint(int pointIndex, float sqrDist)
+        {
+            m_PointIndex = pointIndex;
+            m_SqrDist = sqrDist;
+        }
+
+        public int HeapIndex { get => m_HeapIndex; set => m_HeapIndex = value; }
+        public int PointIndex { get => m_PointIndex; }
+
+        public int CompareTo(object obj)
+        {
+            NearestPoint other = obj as NearestPoint;
+            return other.m_SqrDist.CompareTo(m_SqrDist);
+        }
+    }
+
     public void ConnectNearest(float searchDist, int idealNumOfNeighbours)
     {
         foreach (Point p in m_Points)
@@ -155,7 +172,8 @@ public class PoissonSpheres
             int startZ = Mathf.Max((int)(floatGridPosZ - searchDist), 0);
             int endZ = Mathf.Min((int)(floatGridPosZ + searchDist), m_GridSizeZ - 1);
 
-            Heap<Point> heap = new Heap<Point>((int)(8.0f * searchDist * searchDist * searchDist));
+            int searchWidth = (int)(2.0f * searchDist) + 1;
+            Heap<NearestPoint> heap = new Heap<NearestPoint>(searchWidth * searchWidth * searchWidth);
 
             for (int z = startZ; z <= endZ; z++)
             {
@@ -166,23 +184,18 @@ public class PoissonSpheres
                         int index = m_Grid[x, y, z];
                         if (index == -1) continue;
 
-                        heap.Add(m_Points[index]);
+                        heap.Add(new NearestPoint(index, (m_Points[index].pos + p.pos).sqrMagnitude));
                     }
                 }
             }
             while (heap.GetCount() > 0 && p.nextList.Count < idealNumOfNeighbours)
             {
-                p.nextList.Add(heap.Pop());
+                p.nextList.Add(m_Points[heap.Pop().PointIndex]);
             }
 
             m_MinNearest = Mathf.Min(p.nextList.Count, m_MinNearest);
             m_MaxNearest = Mathf.Max(p.nextList.Count, m_MaxNearest);
         }
         Debug.Log("min: " + m_MinNearest + ", max: " + m_MaxNearest);
-    }
-
-    public List<Point> GetPoints()
-    {
-        return m_Points;
     }
 }
