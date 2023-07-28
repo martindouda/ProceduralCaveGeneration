@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Drawing;
 using UnityEngine;
 
 
@@ -10,6 +11,8 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField] private Transform m_Exit;
     [SerializeField] private Transform m_PivotsParent;
     [SerializeField] private GameObject m_SpherePrefab;
+    [SerializeField] private GameObject m_RedSpherePrefab;
+    [SerializeField] private GameObject m_BlueSpherePrefab;
     [Space(40)]
     [SerializeField] private Vector3 m_Size = new Vector3(10.0f, 10.0f, 10.0f);
     [SerializeField][Range(0.5f, 5.0f)] private float m_MinSphereRadius = 1.0f;
@@ -18,31 +21,9 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField][Range(1, 100)] private int m_NumSamplesBeforeRejection = 30;
     [Space(20)]
     [SerializeField][Range(1, 10)] private int m_SearchDistance = 5;
-    [SerializeField][Range(10, 100)] private int m_IdealNumOfNearest = 30;
+    [SerializeField][Range(1, 100)] private int m_IdealNumOfNearest = 30;
 
     private float m_GenerationTime = 0.0f;
-
-
-    class Node : IHeapItem<Node>
-    {
-        public int index;
-
-        public Node(int index)
-        {
-            this.index = index;
-        }
-
-        public int HeapIndex { get => index; set => index = value; }
-
-        public int CompareTo(object obj)
-        {
-            Node other = obj as Node;
-            return other.index.CompareTo(index);
-        }
-    }
-
-    Heap<Node> heap = new Heap<Node>(100);
-    public int HeapAddedNum = 0;
 
     private void OnDrawGizmos()
     {
@@ -84,8 +65,23 @@ public class CaveGenerator : MonoBehaviour
             DestroyImmediate(m_PivotsParent.GetChild(0).gameObject);
         }
 
+
         List<PoissonSpheres.Point> points = poissonSpheres.Points;
         Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
+
+
+        var examinedPoint = points[0];
+        GameObject centerGo = Instantiate(m_BlueSpherePrefab, m_PivotsParent);
+        centerGo.transform.position = examinedPoint.pos - toCenterOffset;
+        centerGo.transform.localScale = Vector3.one * examinedPoint.r * 2.05f;
+        foreach (var point in examinedPoint.nextList)
+        {
+            GameObject go = Instantiate(m_RedSpherePrefab, m_PivotsParent);
+            go.transform.position = point.pos - toCenterOffset;
+            go.transform.localScale = Vector3.one * point.r * 2.05f;
+        }
+
+
         for (int i = 0; i < points.Count; i++)
         {
             GameObject go = Instantiate(m_SpherePrefab, m_PivotsParent);

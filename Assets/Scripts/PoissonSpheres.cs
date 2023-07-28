@@ -157,7 +157,7 @@ public class PoissonSpheres
         }
     }
 
-    public void ConnectNearest(float searchDist, int idealNumOfNeighbours)
+    public void ConnectNearest(int searchDist, int idealNumOfNeighbours)
     {
         foreach (Point p in m_Points)
         {
@@ -165,16 +165,23 @@ public class PoissonSpheres
             float floatGridPosY = p.pos.y / m_CellSize;
             float floatGridPosZ = p.pos.z / m_CellSize;
 
-            int startX = Mathf.Max((int)(floatGridPosX - searchDist), 0);
-            int endX = Mathf.Min((int)(floatGridPosX + searchDist), m_GridSizeX - 1);
-            int startY = Mathf.Max((int)(floatGridPosY - searchDist), 0);
-            int endY = Mathf.Min((int)(floatGridPosY + searchDist), m_GridSizeY - 1);
-            int startZ = Mathf.Max((int)(floatGridPosZ - searchDist), 0);
-            int endZ = Mathf.Min((int)(floatGridPosZ + searchDist), m_GridSizeZ - 1);
+            int gridPosX = (int)floatGridPosX;
+            int gridPosY = (int)floatGridPosY;
+            int gridPosZ = (int)floatGridPosZ;
+
+            int startX = Mathf.Max(gridPosX - searchDist, 0);
+            int endX = Mathf.Min(gridPosX + searchDist, m_GridSizeX - 1);
+            int startY = Mathf.Max(gridPosY - searchDist, 0);
+            int endY = Mathf.Min(gridPosY + searchDist, m_GridSizeY - 1);
+            int startZ = Mathf.Max(gridPosZ - searchDist, 0);
+            int endZ = Mathf.Min(gridPosZ + searchDist, m_GridSizeZ - 1);
 
             int searchWidth = (int)(2.0f * searchDist) + 1;
             Heap<NearestPoint> heap = new Heap<NearestPoint>(searchWidth * searchWidth * searchWidth);
 
+
+            int tempGridPos = m_Grid[gridPosX, gridPosY, gridPosZ];
+            m_Grid[gridPosX, gridPosY, gridPosZ] = -1;
             for (int z = startZ; z <= endZ; z++)
             {
                 for (int y = startY; y <= endY; y++)
@@ -184,10 +191,13 @@ public class PoissonSpheres
                         int index = m_Grid[x, y, z];
                         if (index == -1) continue;
 
-                        heap.Add(new NearestPoint(index, (m_Points[index].pos + p.pos).sqrMagnitude));
+                        heap.Add(new NearestPoint(index, (m_Points[index].pos - p.pos).sqrMagnitude));
                     }
                 }
             }
+            m_Grid[gridPosX, gridPosY, gridPosZ] = tempGridPos;
+
+
             while (heap.GetCount() > 0 && p.nextList.Count < idealNumOfNeighbours)
             {
                 p.nextList.Add(m_Points[heap.Pop().PointIndex]);
