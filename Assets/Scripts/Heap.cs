@@ -14,6 +14,8 @@ public class Heap<T> where T : IHeapItem<T>
         m_ItemCount = 0;
     }
 
+    public int Count { get => m_ItemCount; }
+
     public void Print()
     {
         String s = "";
@@ -46,11 +48,6 @@ public class Heap<T> where T : IHeapItem<T>
     public void Update(T item)
     {
         SortUp(item);
-    }
-
-    public int GetCount()
-    {
-        return m_ItemCount;
     }
 
     private void SortUp(T item)

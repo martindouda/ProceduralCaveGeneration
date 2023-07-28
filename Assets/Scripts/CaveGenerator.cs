@@ -8,11 +8,17 @@ using static PoissonSpheres;
 [ExecuteInEditMode]
 public class CaveGenerator : MonoBehaviour
 {
-    [SerializeField] private Transform m_Entrance;
-    [SerializeField] private Transform m_Exit;
+    [SerializeField] private Transform m_Start;
+    private Vector3 m_LastStartPosition = new Vector3();
+    [SerializeField] private Transform m_End;
+    private Vector3 m_LastEndPosition = new Vector3();
+
     [SerializeField] private Transform m_PivotsParent;
     [SerializeField] private GameObject[] m_SpherePrefabs = new GameObject[(int)PoissonSpheres.SphereType._SIZE];
     [Space(40)]
+    [SerializeField] private bool m_RenderFullSizedSpheres = true;
+    [SerializeField] private float m_PointSize = 0.5f;
+    [Space(20)]
     [SerializeField] private Vector3 m_Size = new Vector3(10.0f, 10.0f, 10.0f);
     [SerializeField][Range(0.5f, 5.0f)] private float m_MinSphereRadius = 1.0f;
     [SerializeField][Range(0.5f, 5.0f)] private float m_MaxSphereRadius = 3.0f;
@@ -25,7 +31,7 @@ public class CaveGenerator : MonoBehaviour
     private float m_GenerationTime = 0.0f;
 
     PoissonSpheres m_PoissonSpheres;
-    public int VisualizedSphere = 0;
+    [HideInInspector]public int VisualizedSphere = 0;   
 
     private void OnDrawGizmos()
     {
@@ -53,6 +59,27 @@ public class CaveGenerator : MonoBehaviour
         //Gizmos.DrawLine(m_Entrance.position, m_Exit.position);
     }
 
+    private void Update()
+    {
+        if (m_PoissonSpheres == null)
+        {
+            DeleteSpheres();
+            return;
+        }
+        if (m_Start.position != m_LastStartPosition)
+        {
+            m_LastStartPosition = m_Start.position;
+            m_PoissonSpheres.FindShortestPath(m_Start.position, m_End.position, m_SearchDistance);
+            Visualize();
+        }
+        if (m_End.position != m_LastEndPosition)
+        {
+            m_LastEndPosition = m_End.position;
+            m_PoissonSpheres.FindShortestPath(m_Start.position, m_End.position, m_SearchDistance);
+            Visualize();
+        }
+    }
+
     public void Generate()
     {
         m_PoissonSpheres = new PoissonSpheres(m_Size, m_MinSphereRadius, m_MaxSphereRadius, m_SpacingLimit);
@@ -60,7 +87,7 @@ public class CaveGenerator : MonoBehaviour
         float time = Time.realtimeSinceStartup;
         m_PoissonSpheres.GeneratePoints(m_NumSamplesBeforeRejection);
         m_PoissonSpheres.ConnectNearest(m_SearchDistance, m_IdealNumOfNearest);
-        m_PoissonSpheres.FindShortestPath(m_Entrance.position, m_Exit.position, m_SearchDistance);
+        m_PoissonSpheres.FindShortestPath(m_Start.position, m_End.position, m_SearchDistance);
         m_GenerationTime = Time.realtimeSinceStartup - time;
 
         Visualize();
@@ -68,35 +95,48 @@ public class CaveGenerator : MonoBehaviour
 
     public void Visualize()
     {
-        while (m_PivotsParent.childCount > 0)
-        {
-            DestroyImmediate(m_PivotsParent.GetChild(0).gameObject);
-        }
+        DeleteSpheres();
 
         List<PoissonSpheres.Point> points = m_PoissonSpheres.Points;
-        /*for (int i = 0; i < points.Count; i++)
+        for (int i = 0; i < points.Count; i++)
         {
             points[i].VisualSphereType = PoissonSpheres.SphereType.WHITE;
-        }*/
+        }
 
         Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
         var examinedPoint = points[VisualizedSphere];
         examinedPoint.VisualSphereType = PoissonSpheres.SphereType.BLUE;
 
-        foreach (var point in examinedPoint.NextList)
+        foreach (var nearestPoint in examinedPoint.NextList)
         {
-            point.VisualSphereType = PoissonSpheres.SphereType.RED;
+            points[nearestPoint.PointIndex].VisualSphereType = PoissonSpheres.SphereType.RED;
         }
+        
+        m_PoissonSpheres.FindShortestPath(m_Start.position, m_End.position, m_SearchDistance);
 
-        for (int i = 0; i < points.Count; i++)
+        if (m_RenderFullSizedSpheres)
         {
-            GameObject go = Instantiate(m_SpherePrefabs[(int)points[i].VisualSphereType], m_PivotsParent);
-            go.transform.position = points[i].Pos - toCenterOffset;
-            go.transform.localScale = Vector3.one * points[i].Radius * 2.0f;
+            for (int i = 0; i < points.Count; i++)
+            {
+                GameObject go = Instantiate(m_SpherePrefabs[(int)points[i].VisualSphereType], m_PivotsParent);
+                go.transform.position = points[i].Pos - toCenterOffset;
+                go.transform.localScale = Vector3.one * points[i].Radius * 2.0f;
+                go.name = "Sphere " + i;
+            }
+        } 
+        else
+        {
+            for (int i = 0; i < points.Count; i++)
+            {
+                GameObject go = Instantiate(m_SpherePrefabs[(int)points[i].VisualSphereType], m_PivotsParent);
+                go.transform.position = points[i].Pos - toCenterOffset;
+                go.transform.localScale = Vector3.one * m_PointSize;
+                go.name = "Sphere " + i;
+            }
         }
     }
 
-    public void Delete()
+    public void DeleteSpheres()
     {
         while (m_PivotsParent.childCount > 0)
         {

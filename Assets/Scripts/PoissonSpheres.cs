@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Xml.XPath;
 using Unity.VisualScripting;
 using UnityEditor.Search;
 using UnityEngine;
@@ -33,7 +34,7 @@ public class PoissonSpheres
     {
         public Vector3 Pos;
         public float Radius;
-        public List<Point> NextList;
+        public List<NearestPoint> NextList;
 
         public SphereType VisualSphereType;
 
@@ -41,11 +42,40 @@ public class PoissonSpheres
         {
             this.Pos = pos;
             this.Radius = radius;
-            NextList = new List<Point>();
+            NextList = new List<NearestPoint>();
             VisualSphereType = SphereType.WHITE;
         }
 
         
+    }
+
+    public class NearestPoint : IHeapItem<NearestPoint>
+    {
+        public float Dist;
+
+        private int m_HeapIndex;
+        private int m_PointIndex;
+        private float m_SqrDist;
+
+        public NearestPoint(int pointIndex, float sqrDist)
+        {
+            m_PointIndex = pointIndex;
+            m_SqrDist = sqrDist;
+        }
+
+        public void CalculateDist()
+        {
+            Dist = Mathf.Sqrt(Dist);
+        }
+
+        public int HeapIndex { get => m_HeapIndex; set => m_HeapIndex = value; }
+        public int PointIndex { get => m_PointIndex; }
+
+        public int CompareTo(object obj)
+        {
+            NearestPoint other = obj as NearestPoint;
+            return other.m_SqrDist.CompareTo(m_SqrDist);
+        }
     }
 
     public PoissonSpheres(Vector3 size, float minSphereRadius, float maxSphereRadius, float spacingLimit) 
@@ -143,29 +173,6 @@ public class PoissonSpheres
         return true;
     }
 
-    private class NearestPoint : IHeapItem<NearestPoint>
-    {
-        private int m_HeapIndex;
-
-        private int m_PointIndex;
-        private float m_SqrDist;
-
-        public NearestPoint(int pointIndex, float sqrDist)
-        {
-            m_PointIndex = pointIndex;
-            m_SqrDist = sqrDist;
-        }
-
-        public int HeapIndex { get => m_HeapIndex; set => m_HeapIndex = value; }
-        public int PointIndex { get => m_PointIndex; }
-
-        public int CompareTo(object obj)
-        {
-            NearestPoint other = obj as NearestPoint;
-            return other.m_SqrDist.CompareTo(m_SqrDist);
-        }
-    }
-
     public void ConnectNearest(int searchDist, int idealNumOfNeighbours)
     {
         foreach (Point p in m_Points)
@@ -207,9 +214,11 @@ public class PoissonSpheres
             m_Grid[gridPosX, gridPosY, gridPosZ] = tempGridPos;
 
 
-            while (heap.GetCount() > 0 && p.NextList.Count < idealNumOfNeighbours)
+            while (heap.Count > 0 && p.NextList.Count < idealNumOfNeighbours)
             {
-                p.NextList.Add(m_Points[heap.Pop().PointIndex]);
+                var item = heap.Pop();
+                item.CalculateDist();
+                p.NextList.Add(item);
             }
 
             m_MinNearest = Mathf.Min(p.NextList.Count, m_MinNearest);
@@ -218,23 +227,98 @@ public class PoissonSpheres
         Debug.Log("min: " + m_MinNearest + ", max: " + m_MaxNearest);
     }
 
+    private class Node : IHeapItem<Node>
+    {
+        private int m_HeapIndex;
+        private int m_PointIndex;
+        private float m_FCost;
+        private float m_GCost;
+        private float m_HCost;
+
+        public Node Previous;
+
+        public Node(int pointIndex, Node previous, float gCost, float hCost)
+        {
+            m_HeapIndex = -1;
+            m_PointIndex = pointIndex;
+            m_FCost = gCost + hCost;
+            m_GCost = gCost;
+            m_HCost = hCost;
+            Previous = previous;
+        }
+
+        public int HeapIndex { get => m_HeapIndex; set => m_HeapIndex = value; }
+        public int PointIndex { get => m_PointIndex; }
+        public float GCost { get => m_GCost; }
+
+        public int CompareTo(object obj)
+        {
+            Node other = obj as Node;
+            return other.m_FCost.CompareTo(m_FCost);
+        }
+    }
+
     public void FindShortestPath(Vector3 start, Vector3 end, int initialNEarestPointSearchDistance)
     {
-        Point startPoint = FindNearestPoint(start, initialNEarestPointSearchDistance);
-        Point endPoint = FindNearestPoint(end, initialNEarestPointSearchDistance);
+        int startIndex = FindNearestPointsIndex(start, initialNEarestPointSearchDistance);
+        int endIndex = FindNearestPointsIndex(end, initialNEarestPointSearchDistance);
+        Point startPoint = m_Points[startIndex];
+        Point endPoint = m_Points[endIndex];
+
+
+        Heap<Node> open = new Heap<Node>(m_Points.Count * m_MaxNearest);
+        bool[] closed = new bool[m_Points.Count];
+
+
+        Node goalNode = null;
+        open.Add(new Node(startIndex, null, 0.0f, (startPoint.Pos - endPoint.Pos).magnitude));
+        while (open.Count > 0)
+        {
+            Node n = open.Pop();
+            if (closed[n.PointIndex])
+            {
+                continue;
+            }
+
+            if (n.PointIndex == endIndex)
+            {
+                goalNode = n;
+                break;
+            }
+
+            Point p = m_Points[n.PointIndex];
+            foreach (NearestPoint child in m_Points[n.PointIndex].NextList)
+            {
+                Point childPoint = m_Points[child.PointIndex];
+                open.Add(new Node(child.PointIndex, n, n.GCost + (p.Pos - childPoint.Pos).magnitude, (childPoint.Pos - endPoint.Pos).magnitude));
+            }
+
+            closed[n.PointIndex] = true;
+        }
+
+        if (goalNode == null)
+        {
+            Debug.LogError("No path found!!!");
+            return;
+        }
+        Node node = goalNode.Previous;
+        while (node != null)
+        {
+            m_Points[node.PointIndex].VisualSphereType = SphereType.GREEN;
+            node = node.Previous;
+        }
 
         startPoint.VisualSphereType = SphereType.GREEN;
         endPoint.VisualSphereType = SphereType.GREEN;
     }
     
-    private Point FindNearestPoint(Vector3 pos, int searchDistance)
+    private int FindNearestPointsIndex(Vector3 pos, int searchDistance)
     {
         Vector3 toCenterOffset = new Vector3(m_Size.x / 2.0f, 0.0f, m_Size.z / 2.0f);
 
         pos.x = Mathf.Clamp(pos.x, -toCenterOffset.x, toCenterOffset.x);
         pos.y = Mathf.Clamp(pos.y, 0, m_Size.y);
         pos.z = Mathf.Clamp(pos.z, -toCenterOffset.z, toCenterOffset.z);
-        Debug.Log(pos);
 
         int startX = Mathf.Max((int)((pos.x + toCenterOffset.x) / m_CellSize) - searchDistance, 0);
         int endX = Mathf.Min((int)((pos.x + toCenterOffset.x) / m_CellSize) + searchDistance, m_GridSizeX - 1);
@@ -261,7 +345,7 @@ public class PoissonSpheres
             }
         }
 
-        return m_Points[heap.Pop().PointIndex];
+        return heap.Pop().PointIndex;
     }
 }
 
