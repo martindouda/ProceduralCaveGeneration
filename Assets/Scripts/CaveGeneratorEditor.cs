@@ -12,11 +12,20 @@ public class CaveGeneratorEditor : Editor
         CaveGenerator caveGenerator = (CaveGenerator)target;
 
         GUILayout.BeginHorizontal();
-        if (GUILayout.Button("Generate"))
+        if (GUILayout.Button("Generate", GUILayout.Width(100)))
         {
             caveGenerator.Generate();
         }
-        if (GUILayout.Button("Delete"))
+
+        GUILayout.FlexibleSpace();
+        caveGenerator.VisualizedSphere = EditorGUILayout.IntField(caveGenerator.VisualizedSphere, GUILayout.Width(100));
+        if (GUILayout.Button("Visualize", GUILayout.Width(100)))
+        {
+            caveGenerator.Visualize();
+        }
+
+        GUILayout.FlexibleSpace();
+        if (GUILayout.Button("Delete", GUILayout.Width(100)))
         {
             caveGenerator.Delete();
         }

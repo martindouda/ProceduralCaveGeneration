@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using Unity.VisualScripting;
+using UnityEditor.Search;
 using UnityEngine;
 
 public class PoissonSpheres
@@ -22,18 +24,25 @@ public class PoissonSpheres
 
     public List<Point> Points { get => m_Points; }
 
+    public enum SphereType
+    {
+        WHITE, BLUE, RED, GREEN, _SIZE
+    }
 
     public class Point
     {
-        public Vector3 pos;
-        public float r;
-        public List<Point> nextList;
+        public Vector3 Pos;
+        public float Radius;
+        public List<Point> NextList;
 
-        public Point(Vector3 pos, float r)
+        public SphereType VisualSphereType;
+
+        public Point(Vector3 pos, float radius)
         {
-            this.pos = pos;
-            this.r = r;
-            nextList = new List<Point>();
+            this.Pos = pos;
+            this.Radius = radius;
+            NextList = new List<Point>();
+            VisualSphereType = SphereType.WHITE;
         }
 
         
@@ -79,9 +88,9 @@ public class PoissonSpheres
             for (int i = 0; i < numSamplesBeforeRejection; i++)
             {
                 float candidateRadius = Random.Range(m_MinSphereRadius, m_MaxSphereRadius);
-                float minDistFromSpawn = spawnerPoint.r + candidateRadius;
+                float minDistFromSpawn = spawnerPoint.Radius + candidateRadius;
                 float distFromSpawn = Random.Range(minDistFromSpawn, m_SpacingLimit * minDistFromSpawn);
-                Vector3 candidatePos = spawnerPoint.pos + distFromSpawn * Random.onUnitSphere;
+                Vector3 candidatePos = spawnerPoint.Pos + distFromSpawn * Random.onUnitSphere;
                 Point candidatePoint = new Point(candidatePos, candidateRadius);
 
                 if (!pointIsValid(candidatePoint)) continue;
@@ -101,13 +110,13 @@ public class PoissonSpheres
 
     private bool pointIsValid(Point point)
     {
-        if (point.pos.x < 0.0f || point.pos.x > m_Size.x || point.pos.y < 0.0f || point.pos.y > m_Size.y || point.pos.z < 0.0f || point.pos.z > m_Size.z) return false;
+        if (point.Pos.x < 0.0f || point.Pos.x > m_Size.x || point.Pos.y < 0.0f || point.Pos.y > m_Size.y || point.Pos.z < 0.0f || point.Pos.z > m_Size.z) return false;
 
-        float floatGridPosX = point.pos.x / m_CellSize;
-        float floatGridPosY = point.pos.y / m_CellSize;
-        float floatGridPosZ = point.pos.z / m_CellSize;
+        float floatGridPosX = point.Pos.x / m_CellSize;
+        float floatGridPosY = point.Pos.y / m_CellSize;
+        float floatGridPosZ = point.Pos.z / m_CellSize;
 
-        float spawnRadiusSum = (point.r + m_MaxSphereRadius) / m_CellSize;
+        float spawnRadiusSum = (point.Radius + m_MaxSphereRadius) / m_CellSize;
         int startX = Mathf.Max((int)(floatGridPosX - spawnRadiusSum), 0);
         int endX = Mathf.Min((int)(floatGridPosX + spawnRadiusSum), m_GridSizeX - 1);
         int startY = Mathf.Max((int)(floatGridPosY - spawnRadiusSum), 0);
@@ -124,8 +133,8 @@ public class PoissonSpheres
                     int index = m_Grid[x, y, z];
                     if (index == -1) continue;
 
-                    float sqrDist = (point.pos - m_Points[index].pos).sqrMagnitude;
-                    float radiusSum = point.r + m_Points[index].r;
+                    float sqrDist = (point.Pos - m_Points[index].Pos).sqrMagnitude;
+                    float radiusSum = point.Radius + m_Points[index].Radius;
                     if (sqrDist < radiusSum * radiusSum) return false;
                 }
             }
@@ -161,9 +170,9 @@ public class PoissonSpheres
     {
         foreach (Point p in m_Points)
         {
-            float floatGridPosX = p.pos.x / m_CellSize;
-            float floatGridPosY = p.pos.y / m_CellSize;
-            float floatGridPosZ = p.pos.z / m_CellSize;
+            float floatGridPosX = p.Pos.x / m_CellSize;
+            float floatGridPosY = p.Pos.y / m_CellSize;
+            float floatGridPosZ = p.Pos.z / m_CellSize;
 
             int gridPosX = (int)floatGridPosX;
             int gridPosY = (int)floatGridPosY;
@@ -191,21 +200,68 @@ public class PoissonSpheres
                         int index = m_Grid[x, y, z];
                         if (index == -1) continue;
 
-                        heap.Add(new NearestPoint(index, (m_Points[index].pos - p.pos).sqrMagnitude));
+                        heap.Add(new NearestPoint(index, (m_Points[index].Pos - p.Pos).sqrMagnitude));
                     }
                 }
             }
             m_Grid[gridPosX, gridPosY, gridPosZ] = tempGridPos;
 
 
-            while (heap.GetCount() > 0 && p.nextList.Count < idealNumOfNeighbours)
+            while (heap.GetCount() > 0 && p.NextList.Count < idealNumOfNeighbours)
             {
-                p.nextList.Add(m_Points[heap.Pop().PointIndex]);
+                p.NextList.Add(m_Points[heap.Pop().PointIndex]);
             }
 
-            m_MinNearest = Mathf.Min(p.nextList.Count, m_MinNearest);
-            m_MaxNearest = Mathf.Max(p.nextList.Count, m_MaxNearest);
+            m_MinNearest = Mathf.Min(p.NextList.Count, m_MinNearest);
+            m_MaxNearest = Mathf.Max(p.NextList.Count, m_MaxNearest);
         }
         Debug.Log("min: " + m_MinNearest + ", max: " + m_MaxNearest);
     }
+
+    public void FindShortestPath(Vector3 start, Vector3 end, int initialNEarestPointSearchDistance)
+    {
+        Point startPoint = FindNearestPoint(start, initialNEarestPointSearchDistance);
+        Point endPoint = FindNearestPoint(end, initialNEarestPointSearchDistance);
+
+        startPoint.VisualSphereType = SphereType.GREEN;
+        endPoint.VisualSphereType = SphereType.GREEN;
+    }
+    
+    private Point FindNearestPoint(Vector3 pos, int searchDistance)
+    {
+        Vector3 toCenterOffset = new Vector3(m_Size.x / 2.0f, 0.0f, m_Size.z / 2.0f);
+
+        pos.x = Mathf.Clamp(pos.x, -toCenterOffset.x, toCenterOffset.x);
+        pos.y = Mathf.Clamp(pos.y, 0, m_Size.y);
+        pos.z = Mathf.Clamp(pos.z, -toCenterOffset.z, toCenterOffset.z);
+        Debug.Log(pos);
+
+        int startX = Mathf.Max((int)((pos.x + toCenterOffset.x) / m_CellSize) - searchDistance, 0);
+        int endX = Mathf.Min((int)((pos.x + toCenterOffset.x) / m_CellSize) + searchDistance, m_GridSizeX - 1);
+        int startY = Mathf.Max((int)(pos.y / m_CellSize) - searchDistance, 0);
+        int endY = Mathf.Min((int)(pos.y / m_CellSize) + searchDistance, m_GridSizeY - 1);
+        int startZ = Mathf.Max((int)((pos.z + toCenterOffset.z) / m_CellSize) - searchDistance, 0);
+        int endZ = Mathf.Min((int)((pos.z + toCenterOffset.z) / m_CellSize) + searchDistance, m_GridSizeZ - 1);
+
+        int searchWidth = (int)(2.0f * searchDistance) + 1;
+        Heap<NearestPoint> heap = new Heap<NearestPoint>(searchWidth * searchWidth * searchWidth);
+
+
+        for (int z = startZ; z <= endZ; z++)
+        {
+            for (int y = startY; y <= endY; y++)
+            {
+                for (int x = startX; x <= endX; x++)
+                {
+                    int index = m_Grid[x, y, z];
+                    if (index == -1) continue;
+
+                    heap.Add(new NearestPoint(index, (m_Points[index].Pos - toCenterOffset - pos).sqrMagnitude));
+                }
+            }
+        }
+
+        return m_Points[heap.Pop().PointIndex];
+    }
 }
+

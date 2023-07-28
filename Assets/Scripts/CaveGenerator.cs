@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using UnityEngine;
+using static PoissonSpheres;
 
 
 [ExecuteInEditMode]
@@ -10,9 +11,7 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField] private Transform m_Entrance;
     [SerializeField] private Transform m_Exit;
     [SerializeField] private Transform m_PivotsParent;
-    [SerializeField] private GameObject m_SpherePrefab;
-    [SerializeField] private GameObject m_RedSpherePrefab;
-    [SerializeField] private GameObject m_BlueSpherePrefab;
+    [SerializeField] private GameObject[] m_SpherePrefabs = new GameObject[(int)PoissonSpheres.SphereType._SIZE];
     [Space(40)]
     [SerializeField] private Vector3 m_Size = new Vector3(10.0f, 10.0f, 10.0f);
     [SerializeField][Range(0.5f, 5.0f)] private float m_MinSphereRadius = 1.0f;
@@ -24,6 +23,9 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField][Range(1, 100)] private int m_IdealNumOfNearest = 30;
 
     private float m_GenerationTime = 0.0f;
+
+    PoissonSpheres m_PoissonSpheres;
+    public int VisualizedSphere = 0;
 
     private void OnDrawGizmos()
     {
@@ -53,40 +55,44 @@ public class CaveGenerator : MonoBehaviour
 
     public void Generate()
     {
-        PoissonSpheres poissonSpheres = new PoissonSpheres(m_Size, m_MinSphereRadius, m_MaxSphereRadius, m_SpacingLimit);
+        m_PoissonSpheres = new PoissonSpheres(m_Size, m_MinSphereRadius, m_MaxSphereRadius, m_SpacingLimit);
 
         float time = Time.realtimeSinceStartup;
-        poissonSpheres.GeneratePoints(m_NumSamplesBeforeRejection);
-        poissonSpheres.ConnectNearest(m_SearchDistance, m_IdealNumOfNearest);
+        m_PoissonSpheres.GeneratePoints(m_NumSamplesBeforeRejection);
+        m_PoissonSpheres.ConnectNearest(m_SearchDistance, m_IdealNumOfNearest);
+        m_PoissonSpheres.FindShortestPath(m_Entrance.position, m_Exit.position, m_SearchDistance);
         m_GenerationTime = Time.realtimeSinceStartup - time;
 
+        Visualize();
+    }
+
+    public void Visualize()
+    {
         while (m_PivotsParent.childCount > 0)
         {
             DestroyImmediate(m_PivotsParent.GetChild(0).gameObject);
         }
 
-
-        List<PoissonSpheres.Point> points = poissonSpheres.Points;
-        Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
-
-
-        var examinedPoint = points[0];
-        GameObject centerGo = Instantiate(m_BlueSpherePrefab, m_PivotsParent);
-        centerGo.transform.position = examinedPoint.pos - toCenterOffset;
-        centerGo.transform.localScale = Vector3.one * examinedPoint.r * 2.05f;
-        foreach (var point in examinedPoint.nextList)
+        List<PoissonSpheres.Point> points = m_PoissonSpheres.Points;
+        /*for (int i = 0; i < points.Count; i++)
         {
-            GameObject go = Instantiate(m_RedSpherePrefab, m_PivotsParent);
-            go.transform.position = point.pos - toCenterOffset;
-            go.transform.localScale = Vector3.one * point.r * 2.05f;
-        }
+            points[i].VisualSphereType = PoissonSpheres.SphereType.WHITE;
+        }*/
 
+        Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
+        var examinedPoint = points[VisualizedSphere];
+        examinedPoint.VisualSphereType = PoissonSpheres.SphereType.BLUE;
+
+        foreach (var point in examinedPoint.NextList)
+        {
+            point.VisualSphereType = PoissonSpheres.SphereType.RED;
+        }
 
         for (int i = 0; i < points.Count; i++)
         {
-            GameObject go = Instantiate(m_SpherePrefab, m_PivotsParent);
-            go.transform.position = points[i].pos - toCenterOffset;
-            go.transform.localScale = Vector3.one * points[i].r * 2.0f;
+            GameObject go = Instantiate(m_SpherePrefabs[(int)points[i].VisualSphereType], m_PivotsParent);
+            go.transform.position = points[i].Pos - toCenterOffset;
+            go.transform.localScale = Vector3.one * points[i].Radius * 2.0f;
         }
     }
 
