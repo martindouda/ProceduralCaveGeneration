@@ -18,9 +18,11 @@ public class PoissonSpheres
     private List<Point> m_Points = new List<Point>();
     private List<Point> m_SpawnPoints = new List<Point>();
 
+    private List<InceptionHorizon> m_InceptionHorizons = new List<InceptionHorizon>();
 
     private int m_MinNearest = 9999999;
     private int m_MaxNearest = -9999999;
+    private float m_FurthestApartConnectedSpheres = 0.0f;
 
 
     public List<Point> Points { get => m_Points; }
@@ -51,11 +53,11 @@ public class PoissonSpheres
 
     public class NearestPoint : IHeapItem<NearestPoint>
     {
-        public float Dist;
 
         private int m_HeapIndex;
         private int m_PointIndex;
         private float m_SqrDist;
+        private float m_Dist;
 
         public NearestPoint(int pointIndex, float sqrDist)
         {
@@ -65,11 +67,12 @@ public class PoissonSpheres
 
         public void CalculateDist()
         {
-            Dist = Mathf.Sqrt(Dist);
+            m_Dist = Mathf.Sqrt(m_SqrDist);
         }
 
         public int HeapIndex { get => m_HeapIndex; set => m_HeapIndex = value; }
         public int PointIndex { get => m_PointIndex; }
+        public float Dist { get => m_Dist; }
 
         public int CompareTo(object obj)
         {
@@ -219,12 +222,15 @@ public class PoissonSpheres
                 var item = heap.Pop();
                 item.CalculateDist();
                 p.NextList.Add(item);
+
+                m_FurthestApartConnectedSpheres = Mathf.Max(item.Dist, m_FurthestApartConnectedSpheres);
             }
 
             m_MinNearest = Mathf.Min(p.NextList.Count, m_MinNearest);
             m_MaxNearest = Mathf.Max(p.NextList.Count, m_MaxNearest);
         }
-        Debug.Log("min: " + m_MinNearest + ", max: " + m_MaxNearest);
+        Debug.Log(m_FurthestApartConnectedSpheres);
+        //Debug.Log("min: " + m_MinNearest + ", max: " + m_MaxNearest);
     }
 
     private class Node : IHeapItem<Node>
@@ -249,13 +255,44 @@ public class PoissonSpheres
 
         public int HeapIndex { get => m_HeapIndex; set => m_HeapIndex = value; }
         public int PointIndex { get => m_PointIndex; }
+        public float FCost { get => m_FCost; }
         public float GCost { get => m_GCost; }
+        public float HCost { get => m_HCost; }
 
         public int CompareTo(object obj)
         {
             Node other = obj as Node;
             return other.m_FCost.CompareTo(m_FCost);
         }
+    }
+
+    private struct InceptionHorizon
+    {
+        public float Height;
+        public float Cost;
+
+        public InceptionHorizon(float height, float cost)
+        {
+            Height = height;
+            Cost = cost;
+        }
+    }
+
+    public void AddInceptionHorizon(float height, float cost)
+    {
+        m_InceptionHorizons.Add(new InceptionHorizon(height, cost));
+    }
+
+    private float GetHorizonCost(float height)
+    {
+        foreach (var horizon in m_InceptionHorizons)
+        {
+            if (height < horizon.Height)
+            {
+                return horizon.Cost;
+            }
+        }
+        return 0.0f;
     }
 
     public void FindShortestPath(Vector3 start, Vector3 end, int initialNEarestPointSearchDistance)
@@ -266,19 +303,25 @@ public class PoissonSpheres
         Point endPoint = m_Points[endIndex];
 
 
-        Heap<Node> open = new Heap<Node>(m_Points.Count * m_MaxNearest);
         bool[] closed = new bool[m_Points.Count];
+        float[] lowestFCost = new float[m_Points.Count];
+        for (int i = 0; i < m_Points.Count; i++)
+        {
+            lowestFCost[i] = Mathf.Infinity;
+        }
+
+
+        Heap<Node> open = new Heap<Node>(m_Points.Count * m_MaxNearest);
+        float startHCost = (startPoint.Pos - endPoint.Pos).magnitude;
+        open.Add(new Node(startIndex, null, 0.0f, startHCost));
+        lowestFCost[startIndex] = startHCost;
 
 
         Node goalNode = null;
-        open.Add(new Node(startIndex, null, 0.0f, (startPoint.Pos - endPoint.Pos).magnitude));
         while (open.Count > 0)
         {
             Node n = open.Pop();
-            if (closed[n.PointIndex])
-            {
-                continue;
-            }
+            if (lowestFCost[n.PointIndex] < n.FCost) continue;
 
             if (n.PointIndex == endIndex)
             {
@@ -290,7 +333,19 @@ public class PoissonSpheres
             foreach (NearestPoint child in m_Points[n.PointIndex].NextList)
             {
                 Point childPoint = m_Points[child.PointIndex];
-                open.Add(new Node(child.PointIndex, n, n.GCost + (p.Pos - childPoint.Pos).magnitude, (childPoint.Pos - endPoint.Pos).magnitude));
+
+                float horizonCost = GetHorizonCost(childPoint.Pos.y);
+                float gCost = n.GCost + child.Dist + horizonCost;
+                float hCost = (childPoint.Pos - endPoint.Pos).magnitude;
+                /////////
+                hCost = hCost + hCost / m_FurthestApartConnectedSpheres * m_InceptionHorizons[0].Cost;
+
+                Node newNode = new Node(child.PointIndex, n, gCost, hCost);
+
+                if (lowestFCost[child.PointIndex] < newNode.FCost) continue;
+
+                lowestFCost[child.PointIndex] = newNode.FCost;
+                open.Add(newNode);
             }
 
             closed[n.PointIndex] = true;
@@ -305,13 +360,14 @@ public class PoissonSpheres
         while (node != null)
         {
             m_Points[node.PointIndex].VisualSphereType = SphereType.GREEN;
+            //Debug.Log(node.GCost + " " + node.HCost + " " + node.FCost);
             node = node.Previous;
         }
 
         startPoint.VisualSphereType = SphereType.GREEN;
         endPoint.VisualSphereType = SphereType.GREEN;
     }
-    
+
     private int FindNearestPointsIndex(Vector3 pos, int searchDistance)
     {
         Vector3 toCenterOffset = new Vector3(m_Size.x / 2.0f, 0.0f, m_Size.z / 2.0f);

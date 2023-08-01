@@ -87,6 +87,9 @@ public class CaveGenerator : MonoBehaviour
         float time = Time.realtimeSinceStartup;
         m_PoissonSpheres.GeneratePoints(m_NumSamplesBeforeRejection);
         m_PoissonSpheres.ConnectNearest(m_SearchDistance, m_IdealNumOfNearest);
+        m_PoissonSpheres.AddInceptionHorizon(20.0f, 10.0f); 
+        m_PoissonSpheres.AddInceptionHorizon(40.0f, 20.0f); 
+        m_PoissonSpheres.AddInceptionHorizon(60.0f, 30.0f); 
         m_PoissonSpheres.FindShortestPath(m_Start.position, m_End.position, m_SearchDistance);
         m_GenerationTime = Time.realtimeSinceStartup - time;
 
@@ -104,6 +107,8 @@ public class CaveGenerator : MonoBehaviour
         }
 
         Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
+        if (VisualizedSphere > points.Count) VisualizedSphere = points.Count - 1;
+        if (VisualizedSphere < 0) VisualizedSphere = 0;
         var examinedPoint = points[VisualizedSphere];
         examinedPoint.VisualSphereType = PoissonSpheres.SphereType.BLUE;
 
