@@ -4,6 +4,11 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
+public interface IHeapItem<T> : IComparable
+{
+    public int HeapIndex { get; set; }
+}
+
 public class Heap<T> where T : IHeapItem<T>
 {
     private T[] m_Data;
@@ -15,18 +20,6 @@ public class Heap<T> where T : IHeapItem<T>
     }
 
     public int Count { get => m_ItemCount; }
-
-    public void Print()
-    {
-        String s = "";
-        HeapTest.Node[] nodes = m_Data as HeapTest.Node[];
-        for (int i = 0; i < m_ItemCount; i++)
-        {
-            s += nodes[i].Value + " ";
-        }
-        Debug.Log(s);
-
-    }
 
     public void Add(T item)
     {
@@ -94,9 +87,4 @@ public class Heap<T> where T : IHeapItem<T>
         i1.HeapIndex = i2.HeapIndex;
         i2.HeapIndex = temp;
     }
-}
-
-public interface IHeapItem<T> : IComparable
-{
-    public int HeapIndex { get; set; }
 }

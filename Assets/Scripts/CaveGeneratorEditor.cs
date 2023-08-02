@@ -26,10 +26,11 @@ public class CaveGeneratorEditor : Editor
             GUILayout.FlexibleSpace();
             if (GUILayout.Button("Delete", GUILayout.Width(100)))
             {
-                caveGenerator.DeleteSpheres();
+                caveGenerator.Pool.DeleteSpheres();
             }
             GUILayout.EndHorizontal();
-            if (caveGenerator.GetGenerationTime() > 0.0f) GUILayout.Label("Generation took: " + caveGenerator.GetGenerationTime() + "ms");
+            if (caveGenerator.GenerationTime > 0.0f) GUILayout.Label("Generation took: " + caveGenerator.GenerationTime + "ms");
+            if (caveGenerator.VisualizationTime > 0.0f) GUILayout.Label("Visualization took: " + caveGenerator.VisualizationTime + "ms");
         }
     }
 }

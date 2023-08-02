@@ -229,7 +229,7 @@ public class PoissonSpheres
             m_MinNearest = Mathf.Min(p.NextList.Count, m_MinNearest);
             m_MaxNearest = Mathf.Max(p.NextList.Count, m_MaxNearest);
         }
-        Debug.Log(m_FurthestApartConnectedSpheres);
+        //Debug.Log(m_FurthestApartConnectedSpheres);
         //Debug.Log("min: " + m_MinNearest + ", max: " + m_MaxNearest);
     }
 
@@ -297,6 +297,8 @@ public class PoissonSpheres
 
     public void FindShortestPath(Vector3 start, Vector3 end, int initialNEarestPointSearchDistance)
     {
+        float time = Time.realtimeSinceStartup;
+
         int startIndex = FindNearestPointsIndex(start, initialNEarestPointSearchDistance);
         int endIndex = FindNearestPointsIndex(end, initialNEarestPointSearchDistance);
         Point startPoint = m_Points[startIndex];
@@ -366,6 +368,8 @@ public class PoissonSpheres
 
         startPoint.VisualSphereType = SphereType.GREEN;
         endPoint.VisualSphereType = SphereType.GREEN;
+
+        Debug.Log("A* took: " + (Time.realtimeSinceStartup - time) + "ms");
     }
 
     private int FindNearestPointsIndex(Vector3 pos, int searchDistance)
