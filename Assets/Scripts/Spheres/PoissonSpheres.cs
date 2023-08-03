@@ -18,14 +18,13 @@ public class PoissonSpheres
     private List<Point> m_Points = new List<Point>();
     private List<Point> m_SpawnPoints = new List<Point>();
 
-    private List<InceptionHorizon> m_InceptionHorizons = new List<InceptionHorizon>();
-
-    private int m_MinNearest = 9999999;
-    private int m_MaxNearest = -9999999;
-    private float m_FurthestApartConnectedSpheres = 0.0f;
-
-
     public List<Point> Points { get => m_Points; }
+
+    public int GridSizeX { get => m_GridSizeX; }
+    public int GridSizeY { get => m_GridSizeY; }
+    public int GridSizeZ { get => m_GridSizeZ; }
+
+    public int[,,] Grid { get => m_Grid; set => m_Grid = value; }
 
     public enum SphereType
     {
@@ -174,205 +173,9 @@ public class PoissonSpheres
         }
 
         return true;
-    }
+    }   
 
-    public void ConnectNearest(int searchDist, int idealNumOfNeighbours)
-    {
-        foreach (Point p in m_Points)
-        {
-            float floatGridPosX = p.Pos.x / m_CellSize;
-            float floatGridPosY = p.Pos.y / m_CellSize;
-            float floatGridPosZ = p.Pos.z / m_CellSize;
-
-            int gridPosX = (int)floatGridPosX;
-            int gridPosY = (int)floatGridPosY;
-            int gridPosZ = (int)floatGridPosZ;
-
-            int startX = Mathf.Max(gridPosX - searchDist, 0);
-            int endX = Mathf.Min(gridPosX + searchDist, m_GridSizeX - 1);
-            int startY = Mathf.Max(gridPosY - searchDist, 0);
-            int endY = Mathf.Min(gridPosY + searchDist, m_GridSizeY - 1);
-            int startZ = Mathf.Max(gridPosZ - searchDist, 0);
-            int endZ = Mathf.Min(gridPosZ + searchDist, m_GridSizeZ - 1);
-
-            int searchWidth = (int)(2.0f * searchDist) + 1;
-            Heap<NearestPoint> heap = new Heap<NearestPoint>(searchWidth * searchWidth * searchWidth);
-
-
-            int tempGridPos = m_Grid[gridPosX, gridPosY, gridPosZ];
-            m_Grid[gridPosX, gridPosY, gridPosZ] = -1;
-            for (int z = startZ; z <= endZ; z++)
-            {
-                for (int y = startY; y <= endY; y++)
-                {
-                    for (int x = startX; x <= endX; x++)
-                    {
-                        int index = m_Grid[x, y, z];
-                        if (index == -1) continue;
-
-                        heap.Add(new NearestPoint(index, (m_Points[index].Pos - p.Pos).sqrMagnitude));
-                    }
-                }
-            }
-            m_Grid[gridPosX, gridPosY, gridPosZ] = tempGridPos;
-
-
-            while (heap.Count > 0 && p.NextList.Count < idealNumOfNeighbours)
-            {
-                var item = heap.Pop();
-                item.CalculateDist();
-                p.NextList.Add(item);
-
-                m_FurthestApartConnectedSpheres = Mathf.Max(item.Dist, m_FurthestApartConnectedSpheres);
-            }
-
-            m_MinNearest = Mathf.Min(p.NextList.Count, m_MinNearest);
-            m_MaxNearest = Mathf.Max(p.NextList.Count, m_MaxNearest);
-        }
-        //Debug.Log(m_FurthestApartConnectedSpheres);
-        //Debug.Log("min: " + m_MinNearest + ", max: " + m_MaxNearest);
-    }
-
-    private class Node : IHeapItem<Node>
-    {
-        private int m_HeapIndex;
-        private int m_PointIndex;
-        private float m_FCost;
-        private float m_GCost;
-        private float m_HCost;
-
-        public Node Previous;
-
-        public Node(int pointIndex, Node previous, float gCost, float hCost)
-        {
-            m_HeapIndex = -1;
-            m_PointIndex = pointIndex;
-            m_FCost = gCost + hCost;
-            m_GCost = gCost;
-            m_HCost = hCost;
-            Previous = previous;
-        }
-
-        public int HeapIndex { get => m_HeapIndex; set => m_HeapIndex = value; }
-        public int PointIndex { get => m_PointIndex; }
-        public float FCost { get => m_FCost; }
-        public float GCost { get => m_GCost; }
-        public float HCost { get => m_HCost; }
-
-        public int CompareTo(object obj)
-        {
-            Node other = obj as Node;
-            return other.m_FCost.CompareTo(m_FCost);
-        }
-    }
-
-    private struct InceptionHorizon
-    {
-        public float Height;
-        public float Cost;
-
-        public InceptionHorizon(float height, float cost)
-        {
-            Height = height;
-            Cost = cost;
-        }
-    }
-
-    public void AddInceptionHorizon(float height, float cost)
-    {
-        m_InceptionHorizons.Add(new InceptionHorizon(height, cost));
-    }
-
-    private float GetHorizonCost(float height)
-    {
-        foreach (var horizon in m_InceptionHorizons)
-        {
-            if (height < horizon.Height)
-            {
-                return horizon.Cost;
-            }
-        }
-        return 0.0f;
-    }
-
-    public void FindShortestPath(Vector3 start, Vector3 end, int initialNEarestPointSearchDistance)
-    {
-        float time = Time.realtimeSinceStartup;
-
-        int startIndex = FindNearestPointsIndex(start, initialNEarestPointSearchDistance);
-        int endIndex = FindNearestPointsIndex(end, initialNEarestPointSearchDistance);
-        Point startPoint = m_Points[startIndex];
-        Point endPoint = m_Points[endIndex];
-
-
-        bool[] closed = new bool[m_Points.Count];
-        float[] lowestFCost = new float[m_Points.Count];
-        for (int i = 0; i < m_Points.Count; i++)
-        {
-            lowestFCost[i] = Mathf.Infinity;
-        }
-
-
-        Heap<Node> open = new Heap<Node>(m_Points.Count * m_MaxNearest);
-        float startHCost = (startPoint.Pos - endPoint.Pos).magnitude;
-        open.Add(new Node(startIndex, null, 0.0f, startHCost));
-        lowestFCost[startIndex] = startHCost;
-
-
-        Node goalNode = null;
-        while (open.Count > 0)
-        {
-            Node n = open.Pop();
-            if (lowestFCost[n.PointIndex] < n.FCost) continue;
-
-            if (n.PointIndex == endIndex)
-            {
-                goalNode = n;
-                break;
-            }
-
-            Point p = m_Points[n.PointIndex];
-            foreach (NearestPoint child in m_Points[n.PointIndex].NextList)
-            {
-                Point childPoint = m_Points[child.PointIndex];
-
-                float horizonCost = GetHorizonCost(childPoint.Pos.y);
-                float gCost = n.GCost + child.Dist + horizonCost;
-                float hCost = (childPoint.Pos - endPoint.Pos).magnitude;
-                /////////
-                hCost = hCost + hCost / m_FurthestApartConnectedSpheres * m_InceptionHorizons[0].Cost;
-
-                Node newNode = new Node(child.PointIndex, n, gCost, hCost);
-
-                if (lowestFCost[child.PointIndex] < newNode.FCost) continue;
-
-                lowestFCost[child.PointIndex] = newNode.FCost;
-                open.Add(newNode);
-            }
-
-            closed[n.PointIndex] = true;
-        }
-
-        if (goalNode == null)
-        {
-            Debug.LogError("No path found!!!");
-            return;
-        }
-        Node node = goalNode.Previous;
-        while (node != null)
-        {
-            m_Points[node.PointIndex].VisualSphereType = SphereType.GREEN;
-            //Debug.Log(node.GCost + " " + node.HCost + " " + node.FCost);
-            node = node.Previous;
-        }
-
-        startPoint.VisualSphereType = SphereType.GREEN;
-        endPoint.VisualSphereType = SphereType.GREEN;
-
-        Debug.Log("A* took: " + (Time.realtimeSinceStartup - time) + "ms");
-    }
-
-    private int FindNearestPointsIndex(Vector3 pos, int searchDistance)
+    public int FindNearestPointsIndex(Vector3 pos, int searchDistance)
     {
         Vector3 toCenterOffset = new Vector3(m_Size.x / 2.0f, 0.0f, m_Size.z / 2.0f);
 
@@ -406,6 +209,11 @@ public class PoissonSpheres
         }
 
         return heap.Pop().PointIndex;
+    }
+
+    public Vector3 GetGridPos(Vector3 pos) 
+    {
+        return new Vector3(pos.x, pos.y, pos.z) / m_CellSize;
     }
 }
 
