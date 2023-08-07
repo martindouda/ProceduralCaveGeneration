@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Reflection;
+using Unity.VisualScripting;
 using UnityEngine;
 using static PoissonSpheres;
 
@@ -11,24 +12,29 @@ public class CaveGenerator : MonoBehaviour
 {
     public static CaveGenerator Instance;
 
-    [SerializeField] private Transform m_Start;
-    private Vector3 m_LastStartPosition = new Vector3();
-    [SerializeField] private Transform m_End;
-    private Vector3 m_LastEndPosition = new Vector3();
+    [SerializeField] private Transform m_Start; private Vector3 m_LastStartPosition = new Vector3();
+    [SerializeField] private Transform m_End;   private Vector3 m_LastEndPosition = new Vector3();
 
-    [SerializeField] private Transform m_PivotsParent;
+    [SerializeField] private Transform m_SpheresParent;
     [SerializeField] private GameObject m_SpherePrefab;
     [SerializeField] private Material[] m_Materials = new Material[(int)PoissonSpheres.SphereType._SIZE];
-    [Space(40)]
-    [SerializeField] private bool m_RenderFullSizedSpheres = true;
-    [SerializeField] private float m_PointSize = 0.5f;
+
+    [SerializeField] private Transform m_HorizonsParent;
+
     [Space(20)]
+    [Header("RENDERING OPTIONS")]
+    [SerializeField] private bool m_RenderPoints = false;
+    [SerializeField] private float m_PointSize = 0.5f;
+    [SerializeField] private bool m_RenderNeighboursVisualization = true;
+    [Space(20)]
+    [Header("POISSON SPHERES")]
     [SerializeField] private Vector3 m_Size = new Vector3(10.0f, 10.0f, 10.0f);
     [SerializeField][Range(0.5f, 5.0f)] private float m_MinSphereRadius = 1.0f;
     [SerializeField][Range(0.5f, 5.0f)] private float m_MaxSphereRadius = 3.0f;
     [SerializeField][Range(1.0f, 10.0f)] private float m_SpacingLimit = 2.0f;
     [SerializeField][Range(1, 100)] private int m_NumSamplesBeforeRejection = 30;
     [Space(20)]
+    [Header("SPHERES CONNECTION")]
     [SerializeField][Range(1, 10)] private int m_SearchDistance = 5;
     [SerializeField][Range(1, 100)] private int m_IdealNumOfNearest = 30;
 
@@ -39,7 +45,10 @@ public class CaveGenerator : MonoBehaviour
     // Poisson spheres
     PoissonSpheres m_PoissonSpheres;
     [HideInInspector]public int VisualizedSphere = 0;
-    [SerializeField] private InceptionHorizon[] m_InceptionHorizons;
+
+    private List<Horizon> m_Horizons = new List<Horizon>();
+    private float m_CheapestHorizon = 0.0f;
+
     private int m_MinNearest = 9999999;
     private int m_MaxNearest = -9999999;
     private float m_FurthestApartConnectedSpheres = 0.0f;
@@ -50,30 +59,14 @@ public class CaveGenerator : MonoBehaviour
     public float VisualizationTime { get => m_VisualizationTime; }
     public SpherePool Pool { get => m_SpherePool; }
 
-    private void OnDrawGizmos()
-    {
-        /*Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(m_Entrance.position, m_SphereRadius / 2.0f);
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(m_Exit.position, m_SphereRadius / 2.0f);*/
 
-        /*Gizmos.color = Color.cyan;
-        foreach (Transform t in m_Pivots)
+    private void Start()
+    {
+        for (int i = m_SpheresParent.childCount - 1; i >= 0; i--)
         {
-            Gizmos.DrawSphere(t.position, m_SphereRadius);
-        }*/
-        /*if (m_Pivots.Count > 0)
-        {
-            Gizmos.DrawLine(m_Entrance.position, m_Pivots[0].position);
-            for (int i = 0; i < m_Pivots.Count-1; i++)
-            {
-                Gizmos.DrawLine(m_Pivots[i].position, m_Pivots[i+1].position);
-            }
-            Gizmos.DrawLine(m_Pivots[m_Pivots.Count - 1].position, m_Exit.position);
-            return;
-        }*/
-        
-        //Gizmos.DrawLine(m_Entrance.position, m_Exit.position);
+            Transform child = m_SpheresParent.GetChild(i);
+            DestroyImmediate(child.gameObject);
+        }
     }
 
     private void Update()
@@ -108,49 +101,58 @@ public class CaveGenerator : MonoBehaviour
 
     public void Visualize()
     {
+        if (m_PoissonSpheres == null)
+        {
+            Debug.LogWarning("Generating on CaveGenerator is necessary!");
+            return;
+        }
+
+
         float time = Time.realtimeSinceStartup;
 
-        m_SpherePool.NewRound();
 
+        m_SpherePool.NewRound();
         List<PoissonSpheres.Point> points = m_PoissonSpheres.Points;
         for (int i = 0; i < points.Count; i++)
         {
             points[i].VisualSphereType = PoissonSpheres.SphereType.WHITE;
         }
 
-        Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
-        if (VisualizedSphere > points.Count) VisualizedSphere = points.Count - 1;
-        if (VisualizedSphere < 0) VisualizedSphere = 0;
-        var examinedPoint = points[VisualizedSphere];
-        examinedPoint.VisualSphereType = PoissonSpheres.SphereType.BLUE;
 
-        foreach (var nearestPoint in examinedPoint.NextList)
+        if (m_RenderNeighboursVisualization)
         {
-            points[nearestPoint.PointIndex].VisualSphereType = PoissonSpheres.SphereType.RED;
+            if (VisualizedSphere > points.Count) VisualizedSphere = points.Count - 1;
+            if (VisualizedSphere < 0) VisualizedSphere = 0;
+            var examinedPoint = points[VisualizedSphere];
+            examinedPoint.VisualSphereType = PoissonSpheres.SphereType.BLUE;
+            foreach (var nearestPoint in examinedPoint.NextList)
+            {
+                points[nearestPoint.PointIndex].VisualSphereType = PoissonSpheres.SphereType.RED;
+            }
         }
 
-        FindShortestPath(m_Start.position, m_End.position, m_SearchDistance);
 
-        if (m_RenderFullSizedSpheres)
+        FindShortestPath(m_Start.position, m_End.position, m_SearchDistance);
+        Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
+        if (m_RenderPoints)
         {
             for (int i = 0; i < points.Count; i++)
             {
-                m_SpherePool.WakeSphere(points[i].Pos - toCenterOffset, points[i].Radius * 2.0f, m_Materials[(int)points[i].VisualSphereType], i);
+                m_SpherePool.WakeSphere(points[i].Pos - toCenterOffset, m_PointSize, m_Materials[(int)points[i].VisualSphereType], i);
             }
         } 
         else
         {
             for (int i = 0; i < points.Count; i++)
             {
-                m_SpherePool.WakeSphere(points[i].Pos - toCenterOffset, m_PointSize, m_Materials[(int)points[i].VisualSphereType], i);
-
+                m_SpherePool.WakeSphere(points[i].Pos - toCenterOffset, points[i].Radius * 2.0f, m_Materials[(int)points[i].VisualSphereType], i);
             }
         }
-
         m_SpherePool.PutUnusedToSleep();
 
+
         m_VisualizationTime = Time.realtimeSinceStartup - time;
-        Debug.Log("Visualization took: " + m_VisualizationTime + "ms");
+        //Debug.Log("Visualization took: " + m_VisualizationTime + "ms");
     }
 
     public void ConnectNearest(int searchDist, int idealNumOfNeighbours)
@@ -243,31 +245,37 @@ public class CaveGenerator : MonoBehaviour
             return other.m_FCost.CompareTo(m_FCost);
         }
     }
-    [System.Serializable]
-    private struct InceptionHorizon
-    {
-        public float Height;
-        public float Cost;
 
-        public InceptionHorizon(float height, float cost)
+    private void LoadHorizons()
+    {
+        Heap<Horizon> horizons = new Heap<Horizon>(1000); // max num of horizons is 1000
+        for (int i = 0; i < m_HorizonsParent.childCount; i++)
         {
-            Height = height;
-            Cost = cost;
+            Transform horizonTransform = m_HorizonsParent.GetChild(i);
+            Horizon horizon = horizonTransform.GetComponent<Horizon>();
+            horizons.Add(horizon);
         }
-    }
+        m_Horizons.Clear();
+        m_CheapestHorizon = Mathf.Infinity;
+        while (horizons.Count > 0)
+        {
+            Horizon h = horizons.Pop();
 
-    public void AddInceptionHorizon(float height, float cost)
-    {
-        //m_InceptionHorizons.Add(new InceptionHorizon(height, cost));
+            if (h.Cost < m_CheapestHorizon) m_CheapestHorizon = h.Cost;
+            
+            m_Horizons.Add(h);
+        }
     }
 
     private float GetHorizonCost(float height)
     {
-        foreach (var horizon in m_InceptionHorizons)
+        for (int i = 1; i < m_Horizons.Count; i++)
         {
-            if (height < horizon.Height)
+            if (height < m_Horizons[i].Height)
             {
-                return horizon.Cost;
+                // smooth step function
+                float normalizedDistanceBetweenHorizons =  (height - m_Horizons[i - 1].Height) / (m_Horizons[i].Height - m_Horizons[i - 1].Height);
+                return Mathf.SmoothStep(m_Horizons[i - 1].Cost, m_Horizons[i].Cost, normalizedDistanceBetweenHorizons);
             }
         }
         return 0.0f;
@@ -275,7 +283,8 @@ public class CaveGenerator : MonoBehaviour
 
     public void FindShortestPath(Vector3 start, Vector3 end, int initialNEarestPointSearchDistance)
     {
-        float time = Time.realtimeSinceStartup;
+        LoadHorizons();
+        //float time = Time.realtimeSinceStartup;
 
         var points = m_PoissonSpheres.Points;
 
@@ -317,10 +326,10 @@ public class CaveGenerator : MonoBehaviour
                 var childPoint = points[child.PointIndex];
 
                 float horizonCost = GetHorizonCost(childPoint.Pos.y);
-                float gCost = n.GCost + child.Dist + horizonCost;
+                float gCost = n.GCost + child.Dist * horizonCost;
                 float hCost = (childPoint.Pos - endPoint.Pos).magnitude;
                 /////////
-                hCost = hCost + hCost / m_FurthestApartConnectedSpheres * m_InceptionHorizons[0].Cost;
+                hCost = hCost + hCost / m_FurthestApartConnectedSpheres * m_CheapestHorizon;
 
                 Node newNode = new Node(child.PointIndex, n, gCost, hCost);
 
@@ -335,7 +344,7 @@ public class CaveGenerator : MonoBehaviour
 
         if (goalNode == null)
         {
-            Debug.LogError("No path found!!!");
+            Debug.LogWarning("No path found!!!");
             return;
         }
         Node node = goalNode.Previous;
@@ -349,6 +358,6 @@ public class CaveGenerator : MonoBehaviour
         startPoint.VisualSphereType = SphereType.GREEN;
         endPoint.VisualSphereType = SphereType.GREEN;
 
-        Debug.Log("A* took: " + (Time.realtimeSinceStartup - time) + "ms");
+        //Debug.Log("A* took: " + (Time.realtimeSinceStartup - time) + "ms");
     }
 }
