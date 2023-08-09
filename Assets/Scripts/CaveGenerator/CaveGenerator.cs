@@ -1,31 +1,28 @@
-using System.Collections;
 using System.Collections.Generic;
-using System.Drawing;
-using System.Reflection;
-using Unity.VisualScripting;
+using System.Threading.Tasks;
 using UnityEngine;
 using static PoissonSpheres;
-
 
 [ExecuteInEditMode]
 public class CaveGenerator : MonoBehaviour
 {
     public static CaveGenerator Instance;
 
-    [SerializeField] private Transform m_Start; private Vector3 m_LastStartPosition = new Vector3();
-    [SerializeField] private Transform m_End;   private Vector3 m_LastEndPosition = new Vector3();
+    [SerializeField] private Transform m_KeyPointsParent;
+    private List<KeyPoint> m_KeyPoints = new List<KeyPoint>();
 
     [SerializeField] private Transform m_SpheresParent;
     [SerializeField] private GameObject m_SpherePrefab;
     [SerializeField] private Material[] m_Materials = new Material[(int)PoissonSpheres.SphereType._SIZE];
 
-    [SerializeField] private Transform m_HorizonsParent;
+    [SerializeField] private Transform m_HorizonsParent; private List<Vector3> m_LastHorizonsPositions = new List<Vector3>();
 
     [Space(20)]
     [Header("RENDERING OPTIONS")]
     [SerializeField] private bool m_RenderPoints = false;
     [SerializeField] private float m_PointSize = 0.5f;
     [SerializeField] private bool m_RenderNeighboursVisualization = true;
+    [SerializeField] private bool m_VisualizeOnPointMovement = true;
     [Space(20)]
     [Header("POISSON SPHERES")]
     [SerializeField] private Vector3 m_Size = new Vector3(10.0f, 10.0f, 10.0f);
@@ -74,15 +71,27 @@ public class CaveGenerator : MonoBehaviour
         Instance = this;
         if (m_PoissonSpheres == null) return;
 
-        if (m_Start.position != m_LastStartPosition)
+        if (m_VisualizeOnPointMovement)
         {
-            m_LastStartPosition = m_Start.position;
-            Visualize();
-        } 
-        else if (m_End.position != m_LastEndPosition)
+            foreach (var keyPoint in m_KeyPoints)
+            {
+                if (keyPoint.transform.position != keyPoint.LastPos)
+                {
+                    keyPoint.LastPos = keyPoint.transform.position;
+                    Visualize();
+                    return;
+                }
+            }
+        }
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.cyan;
+        for (int i = 0; i < m_HorizonsParent.childCount; i++)
         {
-            m_LastEndPosition = m_End.position;
-            Visualize();
+            Gizmos.DrawSphere(m_HorizonsParent.GetChild(i).position, 1.0f);
+
         }
     }
 
@@ -131,8 +140,12 @@ public class CaveGenerator : MonoBehaviour
             }
         }
 
-
-        FindShortestPath(m_Start.position, m_End.position, m_SearchDistance);
+        LoadKeyPoints();
+        for (int i = 0; i < m_KeyPoints.Count - 1; i++)
+        {
+            FindShortestPath(m_KeyPoints[i].transform.position, m_KeyPoints[i + 1].transform.position, m_SearchDistance);
+        }
+        
         Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
         if (m_RenderPoints)
         {
@@ -155,13 +168,25 @@ public class CaveGenerator : MonoBehaviour
         //Debug.Log("Visualization took: " + m_VisualizationTime + "ms");
     }
 
+    private void LoadKeyPoints()
+    {
+        m_KeyPoints.Clear();
+        for (int i = 0; i < m_KeyPointsParent.childCount; i++)
+        {
+            Transform horizonTransform = m_KeyPointsParent.GetChild(i);
+            KeyPoint keyPoint = horizonTransform.GetComponent<KeyPoint>();
+            m_KeyPoints.Add(keyPoint);
+        }
+    }
+
     public void ConnectNearest(int searchDist, int idealNumOfNeighbours)
     {
         var points = m_PoissonSpheres.Points;
         var grid = m_PoissonSpheres.Grid;
 
-        foreach (var p in points)
+        for (int i = 0; i < points.Count; i++)    
         {
+            Point p = points[i];
             Vector3 gridPos = m_PoissonSpheres.GetGridPos(p.Pos);
 
             int gridPosX = (int)gridPos.x;
