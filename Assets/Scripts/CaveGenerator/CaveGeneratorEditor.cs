@@ -37,8 +37,8 @@ public class CaveGeneratorEditor : Editor
             GUILayout.EndHorizontal();
 
 
-            if (caveGenerator.GenerationTime > 0.0f) GUILayout.Label("Generation took: " + caveGenerator.GenerationTime + "ms");
-            if (caveGenerator.VisualizationTime > 0.0f) GUILayout.Label("Visualization took: " + caveGenerator.VisualizationTime + "ms");
+            if (caveGenerator.GenerationTime > 0.0f) GUILayout.Label("Generation took: " + caveGenerator.GenerationTime * 1000.0f + "ms");
+            if (caveGenerator.VisualizationTime > 0.0f) GUILayout.Label("Visualization took: " + caveGenerator.VisualizationTime * 1000.0f + "ms");
         }
     }
 }

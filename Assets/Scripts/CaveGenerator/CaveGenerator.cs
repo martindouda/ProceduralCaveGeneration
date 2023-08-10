@@ -13,6 +13,10 @@ public class CaveGenerator : MonoBehaviour
 
     [SerializeField] private Transform m_SpheresParent;
     [SerializeField] private GameObject m_SpherePrefab;
+
+    [SerializeField] private Transform m_LineRenderersParent;
+    [SerializeField] private LineRenderer m_LineRendererPrefab;
+
     [SerializeField] private Material[] m_Materials = new Material[(int)PoissonSpheres.SphereType._SIZE];
 
     [SerializeField] private Transform m_HorizonsParent; private List<Vector3> m_LastHorizonsPositions = new List<Vector3>();
@@ -93,12 +97,6 @@ public class CaveGenerator : MonoBehaviour
             Gizmos.DrawSphere(m_HorizonsParent.GetChild(i).position, 1.0f);
         }
         Gizmos.DrawWireCube(new Vector3(transform.position.x, transform.position.y + m_Size.y/2, transform.position.z), m_Size);
-
-        /*Gizmos.color = Color.red;
-        foreach (var keyPoint in m_KeyPoints)
-        {
-            Gizmos.DrawSphere(keyPoint.transform.position, 1.0f);
-        }*/
     }
 
     public void Generate()
@@ -146,6 +144,8 @@ public class CaveGenerator : MonoBehaviour
             }
         }
 
+
+        ClearLines();
         LoadKeyPoints();
         for (int i = 0; i < m_KeyPoints.Count - 1; i++)
         {
@@ -156,6 +156,8 @@ public class CaveGenerator : MonoBehaviour
         }
         
         Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
+        
+
         if (m_RenderPoints)
         {
             for (int i = 0; i < points.Count; i++)
@@ -177,6 +179,14 @@ public class CaveGenerator : MonoBehaviour
 
         m_VisualizationTime = Time.realtimeSinceStartup - time;
         //Debug.Log("Visualization took: " + m_VisualizationTime + "ms");
+    }
+
+    private void ClearLines()
+    {
+        for (int i = m_LineRenderersParent.childCount - 1; i >= 0; i--)
+        {
+            DestroyImmediate(m_LineRenderersParent.GetChild(i).gameObject);
+        }
     }
 
     private void LoadKeyPoints()
@@ -383,13 +393,18 @@ public class CaveGenerator : MonoBehaviour
             Debug.LogWarning("No path found!!!");
             return;
         }
-        Node node = goalNode.Previous;
+        Node node = goalNode;
+
+        List<Vector3> positions = new List<Vector3>();
         while (node != null)
         {
+            positions.Add(points[node.PointIndex].Pos - new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2));
             points[node.PointIndex].VisualSphereType = SphereType.GREEN;
-            //Debug.Log(node.GCost + " " + node.HCost + " " + node.FCost);
             node = node.Previous;
         }
+        LineRenderer lineRenderer = Instantiate(m_LineRendererPrefab, m_LineRenderersParent);
+        lineRenderer.positionCount = positions.Count;
+        lineRenderer.SetPositions(positions.ToArray());
 
         startPoint.VisualSphereType = SphereType.GREEN;
         endPoint.VisualSphereType = SphereType.GREEN;
