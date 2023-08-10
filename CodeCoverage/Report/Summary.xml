@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CoverageReport scope="Summary">
+  <Summary>
+    <Generatedon>8/10/2023 - 6:27:05 PM</Generatedon>
+    <Parser>MultiReportParser (2x OpenCoverParser)</Parser>
+    <Assemblies>1</Assemblies>
+    <Classes>9</Classes>
+    <Files>9</Files>
+    <Coveredlines>436</Coveredlines>
+    <Uncoveredlines>117</Uncoveredlines>
+    <Coverablelines>553</Coverablelines>
+    <Totallines>883</Totallines>
+    <Linecoverage>78.8</Linecoverage>
+    <Coveredbranches>0</Coveredbranches>
+    <Totalbranches>0</Totalbranches>
+    <Coveredmethods>53</Coveredmethods>
+    <Totalmethods>67</Totalmethods>
+    <Methodcoverage>79.1</Methodcoverage>
+  </Summary>
+  <Coverage>
+    <Assembly name="Assembly-CSharp" classes="9" coverage="78.8" coveredlines="436" coverablelines="553" totallines="883" branchcoverage="" coveredbranches="0" totalbranches="0" coveredmethods="53" totalmethods="67" methodcoverage="79.1">
+      <Class name="CaveGenerator" coverage="75.4" coveredlines="200" coverablelines="265" totallines="393" branchcoverage="" coveredbranches="0" totalbranches="0" coveredmethods="18" totalmethods="22" methodcoverage="81.8" />
+      <Class name="CaveGeneratorEditor" coverage="79.3" coveredlines="23" coverablelines="29" totallines="44" branchcoverage="" coveredbranches="0" totalbranches="0" coveredmethods="1" totalmethods="1" methodcoverage="100" />
+      <Class name="Heap[T]" coverage="94.4" coveredlines="51" coverablelines="54" totallines="90" branchcoverage="" coveredbranches="0" totalbranches="0" coveredmethods="7" totalmethods="8" methodcoverage="87.5" />
+      <Class name="Horizon" coverage="100" coveredlines="7" coverablelines="7" totallines="21" branchcoverage="" coveredbranches="0" totalbranches="0" coveredmethods="5" totalmethods="5" methodcoverage="100" />
+      <Class name="KeyPoint" coverage="0" coveredlines="0" coverablelines="2" totallines="9" branchcoverage="" coveredbranches="0" totalbranches="0" coveredmethods="0" totalmethods="3" methodcoverage="0" />
+      <Class name="PoissonSpheres" coverage="100" coveredlines="137" coverablelines="137" totallines="219" branchcoverage="" coveredbranches="0" totalbranches="0" coveredmethods="19" totalmethods="19" methodcoverage="100" />
+      <Class name="Sphere" coverage="0" coveredlines="0" coverablelines="8" totallines="17" branchcoverage="" coveredbranches="0" totalbranches="0" coveredmethods="0" totalmethods="1" methodcoverage="0" />
+      <Class name="SphereEditor" coverage="0" coveredlines="0" coverablelines="8" totallines="21" branchcoverage="" coveredbranches="0" totalbranches="0" coveredmethods="0" totalmethods="1" methodcoverage="0" />
+      <Class name="SpherePool" coverage="41.8" coveredlines="18" coverablelines="43" totallines="69" branchcoverage="" coveredbranches="0" totalbranches="0" coveredmethods="3" totalmethods="7" methodcoverage="42.8" />
+    </Assembly>
+  </Coverage>
+</CoverageReport>

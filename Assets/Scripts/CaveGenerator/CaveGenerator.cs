@@ -91,8 +91,14 @@ public class CaveGenerator : MonoBehaviour
         for (int i = 0; i < m_HorizonsParent.childCount; i++)
         {
             Gizmos.DrawSphere(m_HorizonsParent.GetChild(i).position, 1.0f);
-
         }
+        Gizmos.DrawWireCube(new Vector3(transform.position.x, transform.position.y + m_Size.y/2, transform.position.z), m_Size);
+
+        /*Gizmos.color = Color.red;
+        foreach (var keyPoint in m_KeyPoints)
+        {
+            Gizmos.DrawSphere(keyPoint.transform.position, 1.0f);
+        }*/
     }
 
     public void Generate()
@@ -143,7 +149,10 @@ public class CaveGenerator : MonoBehaviour
         LoadKeyPoints();
         for (int i = 0; i < m_KeyPoints.Count - 1; i++)
         {
-            FindShortestPath(m_KeyPoints[i].transform.position, m_KeyPoints[i + 1].transform.position, m_SearchDistance);
+            for (int j = i + 1; j < m_KeyPoints.Count; j++)
+            {
+                FindShortestPath(m_KeyPoints[i].transform.position, m_KeyPoints[j].transform.position, m_SearchDistance);
+            }
         }
         
         Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
@@ -151,6 +160,7 @@ public class CaveGenerator : MonoBehaviour
         {
             for (int i = 0; i < points.Count; i++)
             {
+                if (points[i].VisualSphereType == SphereType.WHITE) continue;
                 m_SpherePool.WakeSphere(points[i].Pos - toCenterOffset, m_PointSize, m_Materials[(int)points[i].VisualSphereType], i);
             }
         } 
@@ -158,6 +168,7 @@ public class CaveGenerator : MonoBehaviour
         {
             for (int i = 0; i < points.Count; i++)
             {
+                if (points[i].VisualSphereType == SphereType.WHITE) continue;
                 m_SpherePool.WakeSphere(points[i].Pos - toCenterOffset, points[i].Radius * 2.0f, m_Materials[(int)points[i].VisualSphereType], i);
             }
         }
