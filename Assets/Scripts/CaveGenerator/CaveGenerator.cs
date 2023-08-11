@@ -372,11 +372,16 @@ public class CaveGenerator : MonoBehaviour
                 var childPoint = points[child.PointIndex];
 
                 float horizonCost = GetHorizonCost(childPoint.Pos.y);
-                float gCost = n.GCost + child.Dist * horizonCost;
-                float hCost = (childPoint.Pos - endPoint.Pos).magnitude;
-                /////////
-                hCost = hCost + hCost / m_FurthestApartConnectedSpheres * m_CheapestHorizon;
+                float fractureCost = Vector3.Dot(points[n.PointIndex].Pos - childPoint.Pos, new Vector3(1.0f, 0.0f, 0.0f));
+                fractureCost = fractureCost * fractureCost;
+                float gCost = n.GCost + child.Dist * horizonCost + child.Dist * fractureCost;
 
+                float distanceToEnd = (childPoint.Pos - endPoint.Pos).magnitude;
+                float fractureToEndCost = Vector3.Dot(childPoint.Pos - endPoint.Pos, new Vector3(1.0f, 0.0f, 0.0f));
+                fractureToEndCost = fractureToEndCost * fractureToEndCost;
+                float hCost = distanceToEnd + distanceToEnd / m_FurthestApartConnectedSpheres * m_CheapestHorizon + fractureToEndCost * distanceToEnd;
+
+                /////////
                 Node newNode = new Node(child.PointIndex, n, gCost, hCost);
 
                 if (lowestFCost[child.PointIndex] < newNode.FCost) continue;
