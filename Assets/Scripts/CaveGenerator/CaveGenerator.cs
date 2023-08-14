@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using UnityEngine;
 using static PoissonSpheres;
 
@@ -38,7 +37,9 @@ public class CaveGenerator : MonoBehaviour
     [Header("SPHERES CONNECTION")]
     [SerializeField][Range(1, 10)] private int m_SearchDistance = 5;
     [SerializeField][Range(1, 100)] private int m_IdealNumOfNearest = 30;
-
+    [Space(20)]
+    [Header("PATH GENERATION")]
+    [SerializeField][Range(0.0f, 100.0f)] private float m_FracturesWeight = 10.0f;
 
     private float m_GenerationTime = 0.0f;
     private float m_VisualizationTime = 0.0f;
@@ -327,10 +328,16 @@ public class CaveGenerator : MonoBehaviour
         return 0.0f;
     }
 
+    private float GetFracturesCost(Vector3 direction)
+    {
+        float fractureCost = 3.0f - Mathf.Pow(1.0f - Mathf.Abs(direction.x), 4.0f) - Mathf.Pow(1.0f - Mathf.Abs(direction.y), 4.0f) - Mathf.Pow(1.0f - Mathf.Abs(direction.z), 4.0f);
+
+        return fractureCost * m_FracturesWeight;
+    }
+
     public void FindShortestPath(Vector3 start, Vector3 end, int initialNEarestPointSearchDistance)
     {
         LoadHorizons();
-        //float time = Time.realtimeSinceStartup;
 
         var points = m_PoissonSpheres.Points;
 
@@ -353,7 +360,9 @@ public class CaveGenerator : MonoBehaviour
         open.Add(new Node(startIndex, null, 0.0f, startHCost));
         lowestFCost[startIndex] = startHCost;
 
-
+        /*Debug.Log(GetFracturesCost(new Vector3(1.0f, 1.0f, 1.0f).normalized));
+        Debug.Log(GetFracturesCost(new Vector3(-1.0f, -1.0f, -1.0f).normalized));
+        */
         Node goalNode = null;
         while (open.Count > 0)
         {
@@ -366,22 +375,17 @@ public class CaveGenerator : MonoBehaviour
                 break;
             }
 
-            var p = points[n.PointIndex];
-            foreach (NearestPoint child in points[n.PointIndex].NextList)
+            Point point = points[n.PointIndex];
+            foreach (NearestPoint child in point.NextList)
             {
                 var childPoint = points[child.PointIndex];
 
                 float horizonCost = GetHorizonCost(childPoint.Pos.y);
-                float fractureCost = Vector3.Dot(points[n.PointIndex].Pos - childPoint.Pos, new Vector3(1.0f, 0.0f, 0.0f));
-                fractureCost = fractureCost * fractureCost;
-                float gCost = n.GCost + child.Dist * horizonCost + child.Dist * fractureCost;
+                float fractureCost = GetFracturesCost((point.Pos - childPoint.Pos).normalized);
+                float gCost = n.GCost + child.Dist * (horizonCost + fractureCost);
 
-                float distanceToEnd = (childPoint.Pos - endPoint.Pos).magnitude;
-                float fractureToEndCost = Vector3.Dot(childPoint.Pos - endPoint.Pos, new Vector3(1.0f, 0.0f, 0.0f));
-                fractureToEndCost = fractureToEndCost * fractureToEndCost;
-                float hCost = distanceToEnd + distanceToEnd / m_FurthestApartConnectedSpheres * m_CheapestHorizon + fractureToEndCost * distanceToEnd;
+                float hCost = (childPoint.Pos - endPoint.Pos).magnitude * (1.0f + m_CheapestHorizon / m_FurthestApartConnectedSpheres);
 
-                /////////
                 Node newNode = new Node(child.PointIndex, n, gCost, hCost);
 
                 if (lowestFCost[child.PointIndex] < newNode.FCost) continue;
@@ -398,8 +402,8 @@ public class CaveGenerator : MonoBehaviour
             Debug.LogWarning("No path found!!!");
             return;
         }
-        Node node = goalNode;
 
+        Node node = goalNode;
         List<Vector3> positions = new List<Vector3>();
         while (node != null)
         {
@@ -407,13 +411,12 @@ public class CaveGenerator : MonoBehaviour
             points[node.PointIndex].VisualSphereType = SphereType.GREEN;
             node = node.Previous;
         }
+
         LineRenderer lineRenderer = Instantiate(m_LineRendererPrefab, m_LineRenderersParent);
         lineRenderer.positionCount = positions.Count;
         lineRenderer.SetPositions(positions.ToArray());
 
         startPoint.VisualSphereType = SphereType.GREEN;
         endPoint.VisualSphereType = SphereType.GREEN;
-
-        //Debug.Log("A* took: " + (Time.realtimeSinceStartup - time) + "ms");
     }
 }
