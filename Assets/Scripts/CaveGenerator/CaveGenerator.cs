@@ -18,7 +18,8 @@ public class CaveGenerator : MonoBehaviour
 
     [SerializeField] private Material[] m_Materials = new Material[(int)PoissonSpheres.SphereType._SIZE];
 
-    [SerializeField] private Transform m_HorizonsParent; private List<Vector3> m_LastHorizonsPositions = new List<Vector3>();
+    [SerializeField] private Transform m_HorizonsParent;
+    [SerializeField] private Transform m_FracturesParent;
 
     [Space(20)]
     [Header("RENDERING OPTIONS")]
@@ -50,6 +51,9 @@ public class CaveGenerator : MonoBehaviour
 
     private List<Horizon> m_Horizons = new List<Horizon>();
     private float m_CheapestHorizon = 0.0f;
+
+    private List<Fracture> m_Fractures = new List<Fracture>();
+
 
     private int m_MinNearest = 9999999;
     private int m_MaxNearest = -9999999;
@@ -327,10 +331,25 @@ public class CaveGenerator : MonoBehaviour
         }
         return 0.0f;
     }
+    private void LoadFractures()
+    {
+        m_Fractures.Clear();
+        for (int i = 0; i < m_FracturesParent.childCount; i++)
+        {
+            Transform fractureTransform = m_FracturesParent.GetChild(i);
+            Fracture fracture = fractureTransform.GetComponent<Fracture>();
+            m_Fractures.Add(fracture);
+        }
+    }
 
     private float GetFracturesCost(Vector3 direction)
     {
-        float fractureCost = 3.0f - Mathf.Pow(1.0f - Mathf.Abs(direction.x), 4.0f) - Mathf.Pow(1.0f - Mathf.Abs(direction.y), 4.0f) - Mathf.Pow(1.0f - Mathf.Abs(direction.z), 4.0f);
+        float power = 2.0f;
+        float fractureCost = m_Fractures.Count;
+        foreach (Fracture f in m_Fractures)
+        {
+            fractureCost -= Mathf.Pow(1.0f - Mathf.Abs(Vector3.Dot(direction, f.NormalVector)), power);
+        }
 
         return fractureCost * m_FracturesWeight;
     }
@@ -338,6 +357,7 @@ public class CaveGenerator : MonoBehaviour
     public void FindShortestPath(Vector3 start, Vector3 end, int initialNEarestPointSearchDistance)
     {
         LoadHorizons();
+        LoadFractures();
 
         var points = m_PoissonSpheres.Points;
 
@@ -382,7 +402,7 @@ public class CaveGenerator : MonoBehaviour
 
                 float horizonCost = GetHorizonCost(childPoint.Pos.y);
                 float fractureCost = GetFracturesCost((point.Pos - childPoint.Pos).normalized);
-                float gCost = n.GCost + child.Dist * (horizonCost + fractureCost);
+                float gCost = n.GCost + child.Dist * (1.0f + horizonCost + fractureCost);
 
                 float hCost = (childPoint.Pos - endPoint.Pos).magnitude * (1.0f + m_CheapestHorizon / m_FurthestApartConnectedSpheres);
 
