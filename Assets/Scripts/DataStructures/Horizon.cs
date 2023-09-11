@@ -6,7 +6,7 @@ public class Horizon : MonoBehaviour, IHeapItem<Horizon>
 {
     private int m_HeapIndex;
 
-    [SerializeField] private float m_Cost;
+    [SerializeField][Range(0.0f, 1.0f)] private float m_Cost;
 
     public float Height { get => transform.position.y; }
     public float Cost { get => m_Cost; }

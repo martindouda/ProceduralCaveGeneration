@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Linq;
+using Unity.VisualScripting;
 using UnityEngine;
 using static PoissonSpheres;
 
@@ -10,9 +12,6 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField] private Transform m_KeyPointsParent;
     private List<KeyPoint> m_KeyPoints = new List<KeyPoint>();
 
-    [SerializeField] private Transform m_SpheresParent;
-    [SerializeField] private GameObject m_SpherePrefab;
-
     [SerializeField] private Transform m_LineRenderersParent;
     [SerializeField] private LineRenderer m_LineRendererPrefab;
 
@@ -21,32 +20,31 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField] private Transform m_HorizonsParent;
     [SerializeField] private Transform m_FracturesParent;
 
-    [Space(20)]
-    [Header("RENDERING OPTIONS")]
+    [Space(20)][Header("RENDERING OPTIONS")]
     [SerializeField] private bool m_RenderPoints = false;
     [SerializeField] private float m_PointSize = 0.5f;
     [SerializeField] private bool m_RenderNeighboursVisualization = true;
     [SerializeField] private bool m_VisualizeOnPointMovement = true;
-    [Space(20)]
-    [Header("POISSON SPHERES")]
+    [Space(20)][Header("POISSON SPHERES")]
     [SerializeField] private Vector3 m_Size = new Vector3(10.0f, 10.0f, 10.0f);
     [SerializeField][Range(0.5f, 5.0f)] private float m_MinSphereRadius = 1.0f;
     [SerializeField][Range(0.5f, 5.0f)] private float m_MaxSphereRadius = 3.0f;
     [SerializeField][Range(1.0f, 10.0f)] private float m_SpacingLimit = 2.0f;
     [SerializeField][Range(1, 100)] private int m_NumSamplesBeforeRejection = 30;
-    [Space(20)]
-    [Header("SPHERES CONNECTION")]
+    [Space(20)][Header("SPHERES CONNECTION")]
     [SerializeField][Range(1, 10)] private int m_SearchDistance = 5;
     [SerializeField][Range(1, 100)] private int m_IdealNumOfNearest = 30;
-    [Space(20)]
-    [Header("PATH GENERATION")]
+    [Space(20)][Header("PATH GENERATION")]
+    [SerializeField][Range(0.0f, 100.0f)] private float m_HorizonsWeight = 10.0f;
     [SerializeField][Range(0.0f, 100.0f)] private float m_FracturesWeight = 10.0f;
+    [Space(20)][Header("PRONING")]
+    [SerializeField] private float m_ProningExponent = 1.0f;
 
     private float m_GenerationTime = 0.0f;
     private float m_VisualizationTime = 0.0f;
 
     // Poisson spheres
-    PoissonSpheres m_PoissonSpheres;
+    private PoissonSpheres m_PoissonSpheres;
     [HideInInspector]public int VisualizedSphere = 0;
 
     private List<Horizon> m_Horizons = new List<Horizon>();
@@ -60,19 +58,21 @@ public class CaveGenerator : MonoBehaviour
     private float m_FurthestApartConnectedSpheres = 0.0f;
     private SpherePool m_SpherePool;
 
+    private List<Path> m_Paths = new List<Path>();
+
 
     public float GenerationTime { get => m_GenerationTime; }
     public float VisualizationTime { get => m_VisualizationTime; }
     public SpherePool Pool { get => m_SpherePool; }
 
+    private void Awake()
+    {
+        m_SpherePool = GetComponent<SpherePool>();
+    }
 
     private void Start()
     {
-        for (int i = m_SpheresParent.childCount - 1; i >= 0; i--)
-        {
-            Transform child = m_SpheresParent.GetChild(i);
-            DestroyImmediate(child.gameObject);
-        }
+        m_SpherePool.CleanUpSpheresOnSceneLoad();
     }
 
     private void Update()
@@ -119,14 +119,12 @@ public class CaveGenerator : MonoBehaviour
 
     public void Visualize()
     {
+        float time = Time.realtimeSinceStartup;
         if (m_PoissonSpheres == null)
         {
             Debug.LogWarning("Generating on CaveGenerator is necessary!");
             return;
         }
-
-
-        float time = Time.realtimeSinceStartup;
 
 
         m_SpherePool.NewRound();
@@ -152,17 +150,27 @@ public class CaveGenerator : MonoBehaviour
 
         ClearLines();
         LoadKeyPoints();
+        LoadHorizons();
+        LoadFractures();
+        m_Paths.Clear();
+
+        
         for (int i = 0; i < m_KeyPoints.Count - 1; i++)
         {
+            
             for (int j = i + 1; j < m_KeyPoints.Count; j++)
             {
                 FindShortestPath(m_KeyPoints[i].transform.position, m_KeyPoints[j].transform.position, m_SearchDistance);
             }
         }
-        
-        Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
-        
+        PronePaths();
+        foreach (var path in m_Paths)
+        {
+            path.Visualize(m_PoissonSpheres, Instantiate(m_LineRendererPrefab, m_LineRenderersParent));
+        }
 
+
+        Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
         if (m_RenderPoints)
         {
             for (int i = 0; i < points.Count; i++)
@@ -326,7 +334,7 @@ public class CaveGenerator : MonoBehaviour
             {
                 // smooth step function
                 float normalizedDistanceBetweenHorizons =  (height - m_Horizons[i - 1].Height) / (m_Horizons[i].Height - m_Horizons[i - 1].Height);
-                return Mathf.SmoothStep(m_Horizons[i - 1].Cost, m_Horizons[i].Cost, normalizedDistanceBetweenHorizons);
+                return Mathf.SmoothStep(m_Horizons[i - 1].Cost, m_Horizons[i].Cost, normalizedDistanceBetweenHorizons) * m_HorizonsWeight;
             }
         }
         return 0.0f;
@@ -354,15 +362,12 @@ public class CaveGenerator : MonoBehaviour
         return fractureCost * m_FracturesWeight;
     }
 
-    public void FindShortestPath(Vector3 start, Vector3 end, int initialNEarestPointSearchDistance)
+    public void FindShortestPath(Vector3 start, Vector3 end, int initialNearestPointSearchDistance)
     {
-        LoadHorizons();
-        LoadFractures();
-
         var points = m_PoissonSpheres.Points;
 
-        int startIndex = m_PoissonSpheres.FindNearestPointsIndex(start, initialNEarestPointSearchDistance);
-        int endIndex = m_PoissonSpheres.FindNearestPointsIndex(end, initialNEarestPointSearchDistance);
+        int startIndex = m_PoissonSpheres.FindNearestPointsIndex(start, initialNearestPointSearchDistance);
+        int endIndex = m_PoissonSpheres.FindNearestPointsIndex(end, initialNearestPointSearchDistance);
         var startPoint = points[startIndex];
         var endPoint = points[endIndex];
 
@@ -423,20 +428,76 @@ public class CaveGenerator : MonoBehaviour
             return;
         }
 
+
+        List<Point> pointsOnPath = new List<Point>();
         Node node = goalNode;
-        List<Vector3> positions = new List<Vector3>();
         while (node != null)
         {
-            positions.Add(points[node.PointIndex].Pos - new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2));
-            points[node.PointIndex].VisualSphereType = SphereType.GREEN;
+            pointsOnPath.Add(points[node.PointIndex]);
             node = node.Previous;
         }
 
-        LineRenderer lineRenderer = Instantiate(m_LineRendererPrefab, m_LineRenderersParent);
-        lineRenderer.positionCount = positions.Count;
-        lineRenderer.SetPositions(positions.ToArray());
+        m_Paths.Add(new Path(pointsOnPath, goalNode.GCost));
+    }
 
-        startPoint.VisualSphereType = SphereType.GREEN;
-        endPoint.VisualSphereType = SphereType.GREEN;
+    private class PathToPoint
+    {
+        private Path m_Path;
+        private Point m_OtherPoint;
+
+        public Point OtherPoint { get => m_OtherPoint;  }
+
+        public PathToPoint(Path path, Point otherPoint)
+        {
+            m_Path = path;
+            m_OtherPoint = otherPoint;
+        }
+    }
+
+    private void PronePaths()
+    {
+        var points = m_PoissonSpheres.Points;
+
+        Dictionary<Point, Dictionary<Point, Path>> dict = new Dictionary<Point, Dictionary<Point, Path>>();
+        foreach (Path path in m_Paths)
+        {
+            if (!dict.ContainsKey(path.Start))
+            {
+                dict.Add(path.Start, new Dictionary<Point, Path>());
+            }
+            if (!dict.ContainsKey(path.End))
+            {
+                dict.Add(path.End, new Dictionary<Point, Path>());
+            }
+            dict[path.Start][path.End] = path;
+            dict[path.End][path.Start] = path;
+        }
+
+        m_Paths.Clear();
+        foreach (Point point in dict.Keys)
+        {
+            foreach (Point otherPoint in dict[point].Keys)
+            {
+                TryPronePath(dict, point, otherPoint);
+            }
+        }
+    }
+
+    private void TryPronePath(Dictionary<Point, Dictionary<Point, Path>> dict, Point startPoint, Point endPoint)
+    {
+        float pathCost = dict[startPoint][endPoint].Cost;
+        foreach (var inBetweenPoint in dict[startPoint].Keys)
+        {
+            if (!dict[inBetweenPoint].Keys.Contains(endPoint)) continue;
+            
+            float pathToInBetweenPointCost = dict[startPoint][inBetweenPoint].Cost;
+            float pathFromInBetweenPointCost = dict[inBetweenPoint][endPoint].Cost;
+
+            if (Mathf.Pow(pathCost, m_ProningExponent) > Mathf.Pow(pathToInBetweenPointCost, m_ProningExponent) + Mathf.Pow(pathFromInBetweenPointCost, m_ProningExponent))
+            {
+                return;
+            }
+        }
+        if (!m_Paths.Contains(dict[startPoint][endPoint])) m_Paths.Add(dict[startPoint][endPoint]);
     }
 }

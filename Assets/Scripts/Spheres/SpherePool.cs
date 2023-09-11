@@ -7,7 +7,7 @@ using UnityEngine;
 public class SpherePool : MonoBehaviour
 {
     [SerializeField] private GameObject m_SpherePrefab;
-    [SerializeField] private Transform m_SphereParent;
+    [SerializeField] private Transform m_SpheresParent;
     [Space(40)]
     [SerializeField] private int m_InitialNumOfSpheres = 5000;
 
@@ -15,12 +15,21 @@ public class SpherePool : MonoBehaviour
     private List<Transform> m_Spheres = new List<Transform>();
     private int m_NumSpheresInUse = 0;
 
+    public void CleanUpSpheresOnSceneLoad()
+    {
+        for (int i = m_SpheresParent.childCount - 1; i >= 0; i--)
+        {
+            Transform child = m_SpheresParent.GetChild(i);
+            DestroyImmediate(child.gameObject);
+        }
+    }
+
     private void IncreaseCapacity()
     {
         int limit = m_Spheres.Count + m_InitialNumOfSpheres;
         for (int i = m_Spheres.Count; i < limit; i++)
         {
-            GameObject go = Instantiate(m_SpherePrefab, m_SphereParent);
+            GameObject go = Instantiate(m_SpherePrefab, m_SpheresParent);
             go.name = "Sphere " + i;
             m_Spheres.Add(go.transform);
         }

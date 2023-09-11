@@ -20,6 +20,8 @@ public class PoissonSpheres
 
     public List<Point> Points { get => m_Points; }
 
+    public Vector3 Size { get => m_Size; }
+
     public int GridSizeX { get => m_GridSizeX; }
     public int GridSizeY { get => m_GridSizeY; }
     public int GridSizeZ { get => m_GridSizeZ; }
