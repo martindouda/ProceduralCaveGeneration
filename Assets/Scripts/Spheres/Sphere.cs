@@ -2,8 +2,10 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+// Class used to visualize the spheres connected to this sphere.
 public class Sphere : MonoBehaviour
 {
+    // Visualizes the spheres connected to this sphere.
     public void Visualize()
     {
         if (CaveGenerator.Instance == null)

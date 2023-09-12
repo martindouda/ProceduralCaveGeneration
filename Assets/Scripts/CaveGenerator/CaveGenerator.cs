@@ -10,16 +10,16 @@ public class CaveGenerator : MonoBehaviour
 {
     public static CaveGenerator Instance;
 
+    [Space(20)][Header("PREFABS AND PARENTS")]
     [SerializeField] private Transform m_KeyPointsParent;
-    private List<KeyPoint> m_KeyPoints = new List<KeyPoint>();
-
     [SerializeField] private Transform m_LineRenderersParent;
+    [SerializeField] private Transform m_HorizonsParent;
+    [SerializeField] private Transform m_FracturesParent;
+
     [SerializeField] private LineRenderer m_LineRendererPrefab;
 
     [SerializeField] private Material[] m_Materials = new Material[(int)PoissonSpheres.SphereType._SIZE];
 
-    [SerializeField] private Transform m_HorizonsParent;
-    [SerializeField] private Transform m_FracturesParent;
 
     [Space(20)][Header("RENDERING OPTIONS")]
     [SerializeField] private bool m_RenderPoints = false;
@@ -41,42 +41,46 @@ public class CaveGenerator : MonoBehaviour
     [Space(20)][Header("PRONING")]
     [SerializeField][Range(0.0f, 100.0f)] private float m_ProningExponent = 1.0f;
 
-    private float m_GenerationTime = 0.0f;
-    private float m_VisualizationTime = 0.0f;
 
     // Poisson spheres
     private PoissonSpheres m_PoissonSpheres;
     [HideInInspector]public int VisualizedSphere = 0;
 
-    private List<Horizon> m_Horizons = new List<Horizon>();
-    private float m_CheapestHorizon = 0.0f;
-    private List<float> m_CachedHorizonsHeights;
-
-    private List<Fracture> m_Fractures = new List<Fracture>();
-
-
     private int m_MinNearest = 9999999;
     private int m_MaxNearest = -9999999;
     private float m_FurthestApartConnectedSpheres = 0.0f;
-    private SpherePool m_SpherePool;
+    private SpherePool m_SpherePool; public SpherePool Pool { get => m_SpherePool; }
 
-    private List<Path> m_Paths = new List<Path>();
+    // A* and paths
+    private List<KeyPoint> m_KeyPoints;
+    private List<Horizon> m_Horizons;
+    private float m_CheapestHorizon = 0.0f;
+    private List<float> m_CachedHorizonsHeights;
+    private List<Fracture> m_Fractures;
+    private List<Path> m_Paths;
 
 
-    public float GenerationTime { get => m_GenerationTime; }
-    public float VisualizationTime { get => m_VisualizationTime; }
-    public SpherePool Pool { get => m_SpherePool; }
+    [HideInInspector] public float GenerationTime = 0.0f;
+    [HideInInspector] public float VisualizationTime = 0.0f;
 
-    private void Awake()
-    {
-        m_SpherePool = GetComponent<SpherePool>();
-    }
-
+    // Clean up after previous cave.
     private void Start()
     {
         m_SpherePool.CleanUpSpheresOnSceneLoad();
     }
 
+    // Initializes the variables.
+    private void InitializeVariables()
+    {
+        m_KeyPoints = new List<KeyPoint>();
+        m_Horizons = new List<Horizon>();
+        m_CachedHorizonsHeights = new List<float>();
+        m_Fractures = new List<Fracture>();
+        m_SpherePool = GetComponent<SpherePool>();
+        m_Paths = new List<Path>();
+    }
+
+    // Detect key point's movement.
     private void Update()
     {
         Instance = this;
@@ -96,6 +100,7 @@ public class CaveGenerator : MonoBehaviour
         }
     }
 
+    // Draw the borders of the cave and the horizons.
     private void OnDrawGizmos()
     {
         Gizmos.color = Color.cyan;
@@ -106,19 +111,23 @@ public class CaveGenerator : MonoBehaviour
         Gizmos.DrawWireCube(new Vector3(transform.position.x, transform.position.y + m_Size.y/2, transform.position.z), m_Size);
     }
 
+    // Generate a new cave.
     public void Generate()
     {
+        InitializeVariables();
+
         m_PoissonSpheres = new PoissonSpheres(m_Size, m_MinSphereRadius, m_MaxSphereRadius, m_SpacingLimit);
         m_SpherePool = GetComponent<SpherePool>();
 
         float time = Time.realtimeSinceStartup;
         m_PoissonSpheres.GeneratePoints(m_NumSamplesBeforeRejection);
         ConnectNearest(m_SearchDistance, m_IdealNumOfNearest);
-        m_GenerationTime = Time.realtimeSinceStartup - time;
+        GenerationTime = Time.realtimeSinceStartup - time;
 
         Visualize();
     }
 
+    // Recalculate and refresh the curent cave using updated values.
     public void Visualize()
     {
         float time = Time.realtimeSinceStartup;
@@ -198,10 +207,11 @@ public class CaveGenerator : MonoBehaviour
         m_SpherePool.PutUnusedToSleep();
 
 
-        m_VisualizationTime = Time.realtimeSinceStartup - time;
+        VisualizationTime = Time.realtimeSinceStartup - time;
         //Debug.Log("Visualization took: " + m_VisualizationTime + "ms");
     }
 
+    // Clears the drawn lines.
     private void ClearLines()
     {
         for (int i = m_LineRenderersParent.childCount - 1; i >= 0; i--)
@@ -210,6 +220,7 @@ public class CaveGenerator : MonoBehaviour
         }
     }
 
+    // Caches the keypoints. 
     private void LoadKeyPoints()
     {
         m_KeyPoints.Clear();
@@ -221,6 +232,43 @@ public class CaveGenerator : MonoBehaviour
         }
     }
 
+    // Caches the horizons and their heights => it is necessary for multithreading (get_transform can be called only from the main thread).
+    private void LoadHorizons()
+    {
+        Heap<Horizon> horizons = new Heap<Horizon>(1000); // max num of horizons is 1000
+        for (int i = 0; i < m_HorizonsParent.childCount; i++)
+        {
+            Transform horizonTransform = m_HorizonsParent.GetChild(i);
+            Horizon horizon = horizonTransform.GetComponent<Horizon>();
+            horizons.Add(horizon);
+        }
+        m_Horizons.Clear();
+        m_CheapestHorizon = Mathf.Infinity;
+        m_CachedHorizonsHeights.Clear();
+        while (horizons.Count > 0)
+        {
+            Horizon h = horizons.Pop();
+
+            if (h.Cost < m_CheapestHorizon) m_CheapestHorizon = h.Cost;
+            
+            m_Horizons.Add(h);
+            m_CachedHorizonsHeights.Add(h.Height);
+        }
+    }
+
+    // Caches the fractures.
+    private void LoadFractures()
+    {
+        m_Fractures.Clear();
+        for (int i = 0; i < m_FracturesParent.childCount; i++)
+        {
+            Transform fractureTransform = m_FracturesParent.GetChild(i);
+            Fracture fracture = fractureTransform.GetComponent<Fracture>();
+            m_Fractures.Add(fracture);
+        }
+    }
+
+    // Tries to connect at most 'idealNumOfNeighbours' closest neighbours in a cube with side of 2 * 'searchDist'.
     public void ConnectNearest(int searchDist, int idealNumOfNeighbours)
     {
         var points = m_PoissonSpheres.Points;
@@ -229,25 +277,21 @@ public class CaveGenerator : MonoBehaviour
         for (int i = 0; i < points.Count; i++)    
         {
             Point p = points[i];
-            Vector3 gridPos = m_PoissonSpheres.GetGridPos(p.Pos);
+            Vector3Int gridPos = m_PoissonSpheres.GetGridPos(p.Pos);
 
-            int gridPosX = (int)gridPos.x;
-            int gridPosY = (int)gridPos.y;
-            int gridPosZ = (int)gridPos.z;
-
-            int startX = Mathf.Max(gridPosX - searchDist, 0);
-            int endX = Mathf.Min(gridPosX + searchDist, m_PoissonSpheres.GridSizeX - 1);
-            int startY = Mathf.Max(gridPosY - searchDist, 0);
-            int endY = Mathf.Min(gridPosY + searchDist, m_PoissonSpheres.GridSizeY - 1);
-            int startZ = Mathf.Max(gridPosZ - searchDist, 0);
-            int endZ = Mathf.Min(gridPosZ + searchDist, m_PoissonSpheres.GridSizeZ - 1);
+            int startX = Mathf.Max(gridPos.x - searchDist, 0);
+            int endX = Mathf.Min(gridPos.x + searchDist, m_PoissonSpheres.GridSizeX - 1);
+            int startY = Mathf.Max(gridPos.y - searchDist, 0);
+            int endY = Mathf.Min(gridPos.y + searchDist, m_PoissonSpheres.GridSizeY - 1);
+            int startZ = Mathf.Max(gridPos.z - searchDist, 0);
+            int endZ = Mathf.Min(gridPos.z + searchDist, m_PoissonSpheres.GridSizeZ - 1);
 
             int searchWidth = (int)(2.0f * searchDist) + 1;
             Heap<NearestPoint> heap = new Heap<NearestPoint>(searchWidth * searchWidth * searchWidth);
 
 
-            int tempGridPos = grid[gridPosX, gridPosY, gridPosZ];
-            grid[gridPosX, gridPosY, gridPosZ] = -1;
+            int tempGridPos = grid[gridPos.x, gridPos.y, gridPos.z];
+            grid[gridPos.x, gridPos.y, gridPos.z] = -1;
             for (int z = startZ; z <= endZ; z++)
             {
                 for (int y = startY; y <= endY; y++)
@@ -261,7 +305,7 @@ public class CaveGenerator : MonoBehaviour
                     }
                 }
             }
-            grid[gridPosX, gridPosY, gridPosZ] = tempGridPos;
+            grid[gridPos.x, gridPos.y, gridPos.z] = tempGridPos;
 
 
             while (heap.Count > 0 && p.NextList.Count < idealNumOfNeighbours)
@@ -280,6 +324,35 @@ public class CaveGenerator : MonoBehaviour
         //Debug.Log("min: " + m_MinNearest + ", max: " + m_MaxNearest);
     }
 
+    // Returns smoothly interpolated cost of the closest horizon above and below.
+    private float GetHorizonCost(float height)
+    {
+        for (int i = 1; i < m_Horizons.Count; i++)
+        {
+            if (height < m_CachedHorizonsHeights[i])
+            {
+                // smooth step function
+                float normalizedDistanceBetweenHorizons =  (height - m_CachedHorizonsHeights[i - 1]) / (m_CachedHorizonsHeights[i] - m_CachedHorizonsHeights[i - 1]);
+                return Mathf.SmoothStep(m_Horizons[i - 1].Cost, m_Horizons[i].Cost, normalizedDistanceBetweenHorizons) * m_HorizonsWeight;
+            }
+        }
+        return 0.0f;
+    }
+
+    // Returns the cost of traveling in a direction.
+    private float GetFracturesCost(Vector3 direction)
+    {
+        float power = 2.0f;
+        float fractureCost = m_Fractures.Count;
+        foreach (Fracture f in m_Fractures)
+        {
+            fractureCost -= Mathf.Pow(1.0f - Mathf.Abs(Vector3.Dot(direction, f.NormalVector)), power);
+        }
+
+        return fractureCost * m_FracturesWeight;
+    }
+
+    // Class used by A* algorithm to find the cheapest path between two key points.
     private class Node : IHeapItem<Node>
     {
         private int m_HeapIndex;
@@ -313,65 +386,9 @@ public class CaveGenerator : MonoBehaviour
         }
     }
 
-    private void LoadHorizons()
-    {
-        Heap<Horizon> horizons = new Heap<Horizon>(1000); // max num of horizons is 1000
-        for (int i = 0; i < m_HorizonsParent.childCount; i++)
-        {
-            Transform horizonTransform = m_HorizonsParent.GetChild(i);
-            Horizon horizon = horizonTransform.GetComponent<Horizon>();
-            horizons.Add(horizon);
-        }
-        m_Horizons.Clear();
-        m_CheapestHorizon = Mathf.Infinity;
-        m_CachedHorizonsHeights.Clear();
-        while (horizons.Count > 0)
-        {
-            Horizon h = horizons.Pop();
 
-            if (h.Cost < m_CheapestHorizon) m_CheapestHorizon = h.Cost;
-            
-            m_Horizons.Add(h);
-            m_CachedHorizonsHeights.Add(h.Height);
-        }
-    }
-
-    private float GetHorizonCost(float height)
-    {
-        for (int i = 1; i < m_Horizons.Count; i++)
-        {
-            if (height < m_CachedHorizonsHeights[i])
-            {
-                // smooth step function
-                float normalizedDistanceBetweenHorizons =  (height - m_CachedHorizonsHeights[i - 1]) / (m_CachedHorizonsHeights[i] - m_CachedHorizonsHeights[i - 1]);
-                return Mathf.SmoothStep(m_Horizons[i - 1].Cost, m_Horizons[i].Cost, normalizedDistanceBetweenHorizons) * m_HorizonsWeight;
-            }
-        }
-        return 0.0f;
-    }
-    private void LoadFractures()
-    {
-        m_Fractures.Clear();
-        for (int i = 0; i < m_FracturesParent.childCount; i++)
-        {
-            Transform fractureTransform = m_FracturesParent.GetChild(i);
-            Fracture fracture = fractureTransform.GetComponent<Fracture>();
-            m_Fractures.Add(fracture);
-        }
-    }
-
-    private float GetFracturesCost(Vector3 direction)
-    {
-        float power = 2.0f;
-        float fractureCost = m_Fractures.Count;
-        foreach (Fracture f in m_Fractures)
-        {
-            fractureCost -= Mathf.Pow(1.0f - Mathf.Abs(Vector3.Dot(direction, f.NormalVector)), power);
-        }
-
-        return fractureCost * m_FracturesWeight;
-    }
-
+    private object m_PathsLock = new object();
+    // Uses heap and A* to find the shortest path through Poisson's spheres conected to one another.
     public void FindShortestPath(Vector3 start, Vector3 end, int initialNearestPointSearchDistance)
     {
         var points = m_PoissonSpheres.Points;
@@ -395,9 +412,7 @@ public class CaveGenerator : MonoBehaviour
         open.Add(new Node(startIndex, null, 0.0f, startHCost));
         lowestFCost[startIndex] = startHCost;
 
-        /*Debug.Log(GetFracturesCost(new Vector3(1.0f, 1.0f, 1.0f).normalized));
-        Debug.Log(GetFracturesCost(new Vector3(-1.0f, -1.0f, -1.0f).normalized));
-        */
+
         Node goalNode = null;
         while (open.Count > 0)
         {
@@ -446,24 +461,13 @@ public class CaveGenerator : MonoBehaviour
             pointsOnPath.Add(points[node.PointIndex]);
             node = node.Previous;
         }
-
-        m_Paths.Add(new Path(pointsOnPath, goalNode.GCost));
-    }
-
-    private class PathToPoint
-    {
-        private Path m_Path;
-        private Point m_OtherPoint;
-
-        public Point OtherPoint { get => m_OtherPoint;  }
-
-        public PathToPoint(Path path, Point otherPoint)
+        lock(m_PathsLock)
         {
-            m_Path = path;
-            m_OtherPoint = otherPoint;
+            m_Paths.Add(new Path(pointsOnPath, goalNode.GCost));
         }
     }
 
+    // Prones a path between two points if there is a cheaper alternative passing through another point.
     private void PronePaths()
     {
         var points = m_PoissonSpheres.Points;
@@ -493,6 +497,7 @@ public class CaveGenerator : MonoBehaviour
         }
     }
 
+    // Tries to prone a certain path.
     private void TryPronePath(Dictionary<Point, Dictionary<Point, Path>> dict, Point startPoint, Point endPoint)
     {
         float pathCost = dict[startPoint][endPoint].Cost;

@@ -4,9 +4,11 @@ using UnityEditor;
 using UnityEditor.TerrainTools;
 using UnityEngine;
 
+// Class used to add special UI elements to Sphere component in unity's editor.
 [CustomEditor(typeof(Sphere))]
 public class SphereEditor : Editor
 {
+    // Adds a button to the UI.
     public override void OnInspectorGUI()
     {
         DrawDefaultInspector();

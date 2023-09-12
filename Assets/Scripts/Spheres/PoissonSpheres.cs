@@ -1,9 +1,9 @@
 using System.Collections.Generic;
-using System.Xml.XPath;
-using Unity.VisualScripting;
 using UnityEditor.Search;
 using UnityEngine;
 
+// Class which generates and manages Poisson's spheres.
+// Poisson's spheres is a random sphere distribution of non intersecting spheres in the 3D space.
 public class PoissonSpheres
 {
     private Vector3 m_Size;
@@ -28,11 +28,13 @@ public class PoissonSpheres
 
     public int[,,] Grid { get => m_Grid; set => m_Grid = value; }
 
+    // Enum is used to determin what material a sphere should use.
     public enum SphereType
     {
         WHITE, BLUE, RED, GREEN, _SIZE
     }
 
+    // Class which is used to represent a sphere.
     public class Point
     {
         public Vector3 Pos;
@@ -52,6 +54,7 @@ public class PoissonSpheres
         
     }
 
+    // Class which is used to represent spheres neighbouring with a sphere.
     public class NearestPoint : IHeapItem<NearestPoint>
     {
 
@@ -82,6 +85,7 @@ public class PoissonSpheres
         }
     }
 
+    // Constructor which initializes the variables.
     public PoissonSpheres(Vector3 size, float minSphereRadius, float maxSphereRadius, float spacingLimit) 
     {
         m_Size = size;
@@ -95,6 +99,7 @@ public class PoissonSpheres
         m_GridSizeZ = Mathf.CeilToInt(size.z / m_CellSize);
     }
 
+    // Generates the spheres.
     public void GeneratePoints(int numSamplesBeforeRejection)
     {
         m_Points = new List<Point>();
@@ -142,6 +147,7 @@ public class PoissonSpheres
         }
     }
 
+    // Returns true if a sphere (Point) does not interesect with another sphere.
     private bool pointIsValid(Point point)
     {
         if (point.Pos.x < 0.0f || point.Pos.x > m_Size.x || point.Pos.y < 0.0f || point.Pos.y > m_Size.y || point.Pos.z < 0.0f || point.Pos.z > m_Size.z) return false;
@@ -177,6 +183,7 @@ public class PoissonSpheres
         return true;
     }   
 
+    // Returns the index of the sphere closest to the position.
     public int FindNearestPointsIndex(Vector3 pos, int searchDistance)
     {
         Vector3 toCenterOffset = new Vector3(m_Size.x / 2.0f, 0.0f, m_Size.z / 2.0f);
@@ -213,9 +220,10 @@ public class PoissonSpheres
         return heap.Pop().PointIndex;
     }
 
-    public Vector3 GetGridPos(Vector3 pos) 
+    // Returns the position in the grid.
+    public Vector3Int GetGridPos(Vector3 pos) 
     {
-        return new Vector3(pos.x, pos.y, pos.z) / m_CellSize;
+        return new Vector3Int((int)(pos.x / m_CellSize), (int)(pos.y / m_CellSize), (int)(pos.z / m_CellSize));
     }
 }
 

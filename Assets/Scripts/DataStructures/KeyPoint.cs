@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+// Class used to represent a key point.
 public class KeyPoint : MonoBehaviour
 {
     private Vector3 m_LastPos = Vector3.zero;

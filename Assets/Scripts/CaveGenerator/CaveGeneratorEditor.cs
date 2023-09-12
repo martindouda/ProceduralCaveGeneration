@@ -1,10 +1,11 @@
 using UnityEngine;
 using UnityEditor;
 
+// Class used to add special UI elements to CaveGenerator component in unity's editor.
 [CustomEditor(typeof(CaveGenerator))]
 public class CaveGeneratorEditor : Editor
 {
-
+    // Adds 3 buttons to the UI.
     public override void OnInspectorGUI()
     {
         DrawDefaultInspector();

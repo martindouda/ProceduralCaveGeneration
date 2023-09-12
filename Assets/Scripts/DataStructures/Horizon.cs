@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+// Class used to represent a horizon.
 public class Horizon : MonoBehaviour, IHeapItem<Horizon>
 {
     private int m_HeapIndex;
@@ -13,6 +14,7 @@ public class Horizon : MonoBehaviour, IHeapItem<Horizon>
 
     public int HeapIndex { get => m_HeapIndex; set => m_HeapIndex = value; }
 
+    // Function used to sort inside a heap.
     public int CompareTo(object obj)
     {
         Horizon other = obj as Horizon;

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 
+// Class which takes care of the instantiation, management and deletion of the spheres.
 public class SpherePool : MonoBehaviour
 {
     [SerializeField] private GameObject m_SpherePrefab;
@@ -15,6 +16,7 @@ public class SpherePool : MonoBehaviour
     private List<Transform> m_Spheres = new List<Transform>();
     private int m_NumSpheresInUse = 0;
 
+    // Destroys all the spheres which remain from the previous session.
     public void CleanUpSpheresOnSceneLoad()
     {
         for (int i = m_SpheresParent.childCount - 1; i >= 0; i--)
@@ -24,6 +26,7 @@ public class SpherePool : MonoBehaviour
         }
     }
 
+    // Increases the number of available spheres.
     private void IncreaseCapacity()
     {
         int limit = m_Spheres.Count + m_InitialNumOfSpheres;
@@ -35,11 +38,13 @@ public class SpherePool : MonoBehaviour
         }
     }
 
+    // Resets the number of spheres in use.
     public void NewRound()
     {
         m_NumSpheresInUse = 0;
     }
 
+    // Wakes up a sphere.
     public void WakeSphere(Vector3 pos, float scale, Material mat, int index)
     {
         if (m_Spheres.Count < m_NumSpheresInUse + 1)
@@ -53,6 +58,7 @@ public class SpherePool : MonoBehaviour
         sphereTransform.gameObject.SetActive(true);
     }
 
+    // Turns all the unused spheres.
     public void PutUnusedToSleep()
     {
         for (int i = m_NumSpheresInUse; i < m_Spheres.Count; i++)
@@ -62,6 +68,7 @@ public class SpherePool : MonoBehaviour
         m_NumSpheresInUse = 0;
     }
 
+    // Deletes all the referenced spheres.
     public void DeleteSpheres()
     {
         foreach (var sphere in m_Spheres)
@@ -71,6 +78,7 @@ public class SpherePool : MonoBehaviour
         m_Spheres.Clear();
     }
 
+    // Deletes all the referenced spheres on this object's deletion.
     public void OnDestroy()
     {
         DeleteSpheres();
