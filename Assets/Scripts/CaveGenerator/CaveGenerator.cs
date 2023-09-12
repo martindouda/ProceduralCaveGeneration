@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Unity.VisualScripting;
 using UnityEngine;
 using static PoissonSpheres;
@@ -38,7 +39,7 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField][Range(0.0f, 100.0f)] private float m_HorizonsWeight = 10.0f;
     [SerializeField][Range(0.0f, 100.0f)] private float m_FracturesWeight = 10.0f;
     [Space(20)][Header("PRONING")]
-    [SerializeField] private float m_ProningExponent = 1.0f;
+    [SerializeField][Range(0.0f, 100.0f)] private float m_ProningExponent = 1.0f;
 
     private float m_GenerationTime = 0.0f;
     private float m_VisualizationTime = 0.0f;
@@ -49,6 +50,7 @@ public class CaveGenerator : MonoBehaviour
 
     private List<Horizon> m_Horizons = new List<Horizon>();
     private float m_CheapestHorizon = 0.0f;
+    private List<float> m_CachedHorizonsHeights;
 
     private List<Fracture> m_Fractures = new List<Fracture>();
 
@@ -154,15 +156,21 @@ public class CaveGenerator : MonoBehaviour
         LoadFractures();
         m_Paths.Clear();
 
-        
+        Vector3[] keyPointsPositions = new Vector3[m_KeyPoints.Count];
+        for (int i = 0; i < m_KeyPoints.Count; i++)
+        {
+            keyPointsPositions[i] = m_KeyPoints[i].transform.position;
+        }
+
         for (int i = 0; i < m_KeyPoints.Count - 1; i++)
         {
-            
-            for (int j = i + 1; j < m_KeyPoints.Count; j++)
+            Parallel.For(i + 1, m_KeyPoints.Count, (j) =>
             {
-                FindShortestPath(m_KeyPoints[i].transform.position, m_KeyPoints[j].transform.position, m_SearchDistance);
-            }
+                FindShortestPath(keyPointsPositions[i], keyPointsPositions[j], m_SearchDistance);
+            });
         }
+
+        
         PronePaths();
         foreach (var path in m_Paths)
         {
@@ -316,6 +324,7 @@ public class CaveGenerator : MonoBehaviour
         }
         m_Horizons.Clear();
         m_CheapestHorizon = Mathf.Infinity;
+        m_CachedHorizonsHeights.Clear();
         while (horizons.Count > 0)
         {
             Horizon h = horizons.Pop();
@@ -323,6 +332,7 @@ public class CaveGenerator : MonoBehaviour
             if (h.Cost < m_CheapestHorizon) m_CheapestHorizon = h.Cost;
             
             m_Horizons.Add(h);
+            m_CachedHorizonsHeights.Add(h.Height);
         }
     }
 
@@ -330,10 +340,10 @@ public class CaveGenerator : MonoBehaviour
     {
         for (int i = 1; i < m_Horizons.Count; i++)
         {
-            if (height < m_Horizons[i].Height)
+            if (height < m_CachedHorizonsHeights[i])
             {
                 // smooth step function
-                float normalizedDistanceBetweenHorizons =  (height - m_Horizons[i - 1].Height) / (m_Horizons[i].Height - m_Horizons[i - 1].Height);
+                float normalizedDistanceBetweenHorizons =  (height - m_CachedHorizonsHeights[i - 1]) / (m_CachedHorizonsHeights[i] - m_CachedHorizonsHeights[i - 1]);
                 return Mathf.SmoothStep(m_Horizons[i - 1].Cost, m_Horizons[i].Cost, normalizedDistanceBetweenHorizons) * m_HorizonsWeight;
             }
         }
