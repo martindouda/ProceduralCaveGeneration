@@ -40,7 +40,9 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField][Range(0.0f, 100.0f)] private float m_FracturesWeight = 10.0f;
     [Space(20)][Header("PRONING")]
     [SerializeField][Range(0.0f, 100.0f)] private float m_ProningExponent = 1.0f;
-
+    [Space(20)][Header("ADDITIONAL KEY POINTS")]
+    [SerializeField][Range(0, 10)] private int m_MaxNumberOfAdditionalKeyPoints = 5;
+    [SerializeField][Range(0.0f, 100.0f)] private float m_MaxDistFromPath = 10.0f;
 
     // Poisson spheres
     private PoissonSpheres m_PoissonSpheres;
@@ -66,6 +68,7 @@ public class CaveGenerator : MonoBehaviour
     // Clean up after previous cave.
     private void Start()
     {
+        InitializeVariables();
         m_SpherePool.CleanUpSpheresOnSceneLoad();
     }
 
@@ -175,12 +178,13 @@ public class CaveGenerator : MonoBehaviour
         {
             Parallel.For(i + 1, m_KeyPoints.Count, (j) =>
             {
-                FindShortestPath(keyPointsPositions[i], keyPointsPositions[j], m_SearchDistance);
+                FindShortestPath(m_PoissonSpheres.GetNearestPoint(keyPointsPositions[i], m_SearchDistance), m_PoissonSpheres.GetNearestPoint(keyPointsPositions[j], m_SearchDistance));
             });
         }
-
         
         PronePaths();
+        GenerateAdditionalKeyPoints();
+
         foreach (var path in m_Paths)
         {
             path.Visualize(m_PoissonSpheres, Instantiate(m_LineRendererPrefab, m_LineRenderersParent));
@@ -209,6 +213,28 @@ public class CaveGenerator : MonoBehaviour
 
         VisualizationTime = Time.realtimeSinceStartup - time;
         //Debug.Log("Visualization took: " + m_VisualizationTime + "ms");
+    }
+
+    // Generates addition tunnels spreading from the paths.
+    private void GenerateAdditionalKeyPoints()
+    {
+        int pathsSizeBeforeAddition = m_Paths.Count;
+        for (int i = 0; i < pathsSizeBeforeAddition; i++)
+        {
+            Path path = m_Paths[i];
+            for (int j = 0; j < m_MaxNumberOfAdditionalKeyPoints; j++)
+            {
+                if (Random.value > 0.5f) continue;
+
+                Point pointOnPath = path.Points[Random.Range(0, path.Points.Count)];
+                Vector3 randomPos = Random.insideUnitSphere * m_MaxDistFromPath;
+                Point randomPoint = m_PoissonSpheres.GetNearestPoint(pointOnPath.Pos - new Vector3(m_PoissonSpheres.GridSizeX / 2.0f, 0.0f, m_PoissonSpheres.GridSizeZ / 2.0f) + randomPos, m_SearchDistance);
+                
+                if (randomPoint == null) continue;
+                
+                FindShortestPath(pointOnPath, randomPoint);
+            }
+        }
     }
 
     // Clears the drawn lines.
@@ -389,14 +415,9 @@ public class CaveGenerator : MonoBehaviour
 
     private object m_PathsLock = new object();
     // Uses heap and A* to find the shortest path through Poisson's spheres conected to one another.
-    public void FindShortestPath(Vector3 start, Vector3 end, int initialNearestPointSearchDistance)
+    public void FindShortestPath(Point startPoint, Point endPoint)
     {
         var points = m_PoissonSpheres.Points;
-
-        int startIndex = m_PoissonSpheres.FindNearestPointsIndex(start, initialNearestPointSearchDistance);
-        int endIndex = m_PoissonSpheres.FindNearestPointsIndex(end, initialNearestPointSearchDistance);
-        var startPoint = points[startIndex];
-        var endPoint = points[endIndex];
 
 
         bool[] closed = new bool[points.Count];
@@ -409,8 +430,8 @@ public class CaveGenerator : MonoBehaviour
 
         Heap<Node> open = new Heap<Node>(points.Count * m_MaxNearest);
         float startHCost = (startPoint.Pos - endPoint.Pos).magnitude;
-        open.Add(new Node(startIndex, null, 0.0f, startHCost));
-        lowestFCost[startIndex] = startHCost;
+        open.Add(new Node(startPoint.Index, null, 0.0f, startHCost));
+        lowestFCost[startPoint.Index] = startHCost;
 
 
         Node goalNode = null;
@@ -419,7 +440,7 @@ public class CaveGenerator : MonoBehaviour
             Node n = open.Pop();
             if (lowestFCost[n.PointIndex] < n.FCost) continue;
 
-            if (n.PointIndex == endIndex)
+            if (n.PointIndex == endPoint.Index)
             {
                 goalNode = n;
                 break;
@@ -508,7 +529,7 @@ public class CaveGenerator : MonoBehaviour
             float pathToInBetweenPointCost = dict[startPoint][inBetweenPoint].Cost;
             float pathFromInBetweenPointCost = dict[inBetweenPoint][endPoint].Cost;
 
-            if (Mathf.Pow(pathCost, m_ProningExponent) > Mathf.Pow(pathToInBetweenPointCost, m_ProningExponent) + Mathf.Pow(pathFromInBetweenPointCost, m_ProningExponent))
+            if (System.Math.Pow((double)pathCost, (double)m_ProningExponent) > System.Math.Pow((double)pathToInBetweenPointCost, (double)m_ProningExponent) + System.Math.Pow((double)pathFromInBetweenPointCost, (double)m_ProningExponent))
             {
                 return;
             }

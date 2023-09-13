@@ -16,7 +16,6 @@ public class PoissonSpheres
     private int m_GridSizeX, m_GridSizeY, m_GridSizeZ;
 
     private List<Point> m_Points = new List<Point>();
-    private List<Point> m_SpawnPoints = new List<Point>();
 
     public List<Point> Points { get => m_Points; }
 
@@ -39,20 +38,20 @@ public class PoissonSpheres
     {
         public Vector3 Pos;
         public float Radius;
+        public int Index;
         public List<NearestPoint> NextList;
 
         public SphereType VisualSphereType;
 
-        public Point(Vector3 pos, float radius)
+        public Point(Vector3 pos, float radius, int index)
         {
-            this.Pos = pos;
-            this.Radius = radius;
+            Pos = pos;
+            Radius = radius;
             NextList = new List<NearestPoint>();
             VisualSphereType = SphereType.WHITE;
+            Index = index;
         }
-
-        
-    }
+     }
 
     // Class which is used to represent spheres neighbouring with a sphere.
     public class NearestPoint : IHeapItem<NearestPoint>
@@ -103,7 +102,7 @@ public class PoissonSpheres
     public void GeneratePoints(int numSamplesBeforeRejection)
     {
         m_Points = new List<Point>();
-        m_SpawnPoints = new List<Point>();
+        List<Point> spawnPoints = new List<Point>();
         m_Grid = new int[m_GridSizeX, m_GridSizeY, m_GridSizeZ];
         for (int z = 0; z < m_GridSizeZ; z++)
         {
@@ -117,11 +116,11 @@ public class PoissonSpheres
         }
 
 
-        m_SpawnPoints.Add(new Point(m_Size / 2.0f, Random.Range(m_MinSphereRadius, m_MaxSphereRadius)));
-        while (m_SpawnPoints.Count > 0)
+        spawnPoints.Add(new Point(m_Size / 2.0f, Random.Range(m_MinSphereRadius, m_MaxSphereRadius), 0));
+        while (spawnPoints.Count > 0)
         {
-            int spawnIndex = Random.Range(0, m_SpawnPoints.Count);
-            Point spawnerPoint = m_SpawnPoints[spawnIndex];
+            int spawnIndex = Random.Range(0, spawnPoints.Count);
+            Point spawnerPoint = spawnPoints[spawnIndex];
             bool candidateAccepted = false;
 
             for (int i = 0; i < numSamplesBeforeRejection; i++)
@@ -130,19 +129,19 @@ public class PoissonSpheres
                 float minDistFromSpawn = spawnerPoint.Radius + candidateRadius;
                 float distFromSpawn = Random.Range(minDistFromSpawn, m_SpacingLimit * minDistFromSpawn);
                 Vector3 candidatePos = spawnerPoint.Pos + distFromSpawn * Random.onUnitSphere;
-                Point candidatePoint = new Point(candidatePos, candidateRadius);
+                Point candidatePoint = new Point(candidatePos, candidateRadius, m_Points.Count);
 
                 if (!pointIsValid(candidatePoint)) continue;
 
-                m_Grid[(int)(candidatePos.x / m_CellSize), (int)(candidatePos.y / m_CellSize), (int)(candidatePos.z / m_CellSize)] = m_Points.Count;
+                m_Grid[(int)(candidatePos.x / m_CellSize), (int)(candidatePos.y / m_CellSize), (int)(candidatePos.z / m_CellSize)] = candidatePoint.Index;
                 m_Points.Add(candidatePoint);
-                m_SpawnPoints.Add(candidatePoint);
+                spawnPoints.Add(candidatePoint);
                 candidateAccepted = true;
                 break;
             }
             if (!candidateAccepted)
             {
-                m_SpawnPoints.RemoveAt(spawnIndex);
+                spawnPoints.RemoveAt(spawnIndex);
             }
         }
     }
@@ -184,7 +183,7 @@ public class PoissonSpheres
     }   
 
     // Returns the index of the sphere closest to the position.
-    public int FindNearestPointsIndex(Vector3 pos, int searchDistance)
+    public Point GetNearestPoint(Vector3 pos, int searchDistance)
     {
         Vector3 toCenterOffset = new Vector3(m_Size.x / 2.0f, 0.0f, m_Size.z / 2.0f);
 
@@ -217,7 +216,7 @@ public class PoissonSpheres
             }
         }
 
-        return heap.Pop().PointIndex;
+        return m_Points[heap.Pop().PointIndex];
     }
 
     // Returns the position in the grid.

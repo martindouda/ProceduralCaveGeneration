@@ -10,7 +10,9 @@ public class Path
 
     public Point Start { get => m_Points[0]; }
     public Point End { get => m_Points[m_Points.Count - 1]; }
+    public List<Point> Points { get => m_Points; }
     public float Cost { get => m_Cost; }
+    
 
     // Constructor which takes all the points on the path including the start
     // and the end and a cost of the path.
