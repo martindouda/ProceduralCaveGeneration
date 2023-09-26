@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Profiling;
 using static PoissonSpheres;
 
 [ExecuteInEditMode]
@@ -40,16 +42,15 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField][Range(0.0f, 100.0f)] private float m_FracturesWeight = 10.0f;
     [Space(20)][Header("PRONING")]
     [SerializeField][Range(0.0f, 100.0f)] private float m_ProningExponent = 1.0f;
-    [Space(20)][Header("ADDITIONAL KEY POINTS")]
-    [SerializeField][Range(0, 10)] private int m_MaxNumberOfAdditionalKeyPoints = 5;
+    [Space(20)][Header("RAMIFICATION")]
+    [SerializeField][Range(0.0f, 1.0f)] private float m_BranchesPerPathNodeCoefficient = 0.5f;
     [SerializeField][Range(0.0f, 100.0f)] private float m_MaxDistFromPath = 10.0f;
+    [SerializeField][Range(0.0f, 1.0f)] private float m_ProbabilityOfBranchSpawn = 0.5f;
 
     // Poisson spheres
     private PoissonSpheres m_PoissonSpheres;
     [HideInInspector]public int VisualizedSphere = 0;
 
-    private int m_MinNearest = 9999999;
-    private int m_MaxNearest = -9999999;
     private float m_FurthestApartConnectedSpheres = 0.0f;
     private SpherePool m_SpherePool; public SpherePool Pool { get => m_SpherePool; }
 
@@ -118,7 +119,6 @@ public class CaveGenerator : MonoBehaviour
     public void Generate()
     {
         InitializeVariables();
-
         m_PoissonSpheres = new PoissonSpheres(m_Size, m_MinSphereRadius, m_MaxSphereRadius, m_SpacingLimit);
         m_SpherePool = GetComponent<SpherePool>();
 
@@ -129,6 +129,7 @@ public class CaveGenerator : MonoBehaviour
 
         Visualize();
     }
+
 
     // Recalculate and refresh the curent cave using updated values.
     public void Visualize()
@@ -142,12 +143,11 @@ public class CaveGenerator : MonoBehaviour
 
 
         m_SpherePool.NewRound();
-        List<PoissonSpheres.Point> points = m_PoissonSpheres.Points;
+        List<Point> points = m_PoissonSpheres.Points;
         for (int i = 0; i < points.Count; i++)
         {
             points[i].VisualSphereType = PoissonSpheres.SphereType.WHITE;
         }
-
 
         if (m_RenderNeighboursVisualization)
         {
@@ -161,29 +161,31 @@ public class CaveGenerator : MonoBehaviour
             }
         }
 
-
         ClearLines();
         LoadKeyPoints();
         LoadHorizons();
         LoadFractures();
         m_Paths.Clear();
 
+        Timer t = new Timer("FindShortestPath");
         Vector3[] keyPointsPositions = new Vector3[m_KeyPoints.Count];
         for (int i = 0; i < m_KeyPoints.Count; i++)
         {
             keyPointsPositions[i] = m_KeyPoints[i].transform.position;
         }
 
-        for (int i = 0; i < m_KeyPoints.Count - 1; i++)
+
+        Parallel.For(0, m_KeyPoints.Count - 1, (i) =>
         {
-            Parallel.For(i + 1, m_KeyPoints.Count, (j) =>
+            for (int j = i + 1; j < m_KeyPoints.Count; j++)
             {
                 FindShortestPath(m_PoissonSpheres.GetNearestPoint(keyPointsPositions[i], m_SearchDistance), m_PoissonSpheres.GetNearestPoint(keyPointsPositions[j], m_SearchDistance));
-            });
-        }
-        
+            }
+        });
+        t.End();
+
         PronePaths();
-        GenerateAdditionalKeyPoints();
+        GenerateBranches();
 
         foreach (var path in m_Paths)
         {
@@ -216,15 +218,15 @@ public class CaveGenerator : MonoBehaviour
     }
 
     // Generates addition tunnels spreading from the paths.
-    private void GenerateAdditionalKeyPoints()
+    private void GenerateBranches()
     {
         int pathsSizeBeforeAddition = m_Paths.Count;
         for (int i = 0; i < pathsSizeBeforeAddition; i++)
         {
             Path path = m_Paths[i];
-            for (int j = 0; j < m_MaxNumberOfAdditionalKeyPoints; j++)
+            for (int j = 0; j < path.Points.Count * m_BranchesPerPathNodeCoefficient; j++)
             {
-                if (Random.value > 0.5f) continue;
+                if (Random.value > m_ProbabilityOfBranchSpawn) continue;
 
                 Point pointOnPath = path.Points[Random.Range(0, path.Points.Count)];
                 Vector3 randomPos = Random.insideUnitSphere * m_MaxDistFromPath;
@@ -300,6 +302,8 @@ public class CaveGenerator : MonoBehaviour
         var points = m_PoissonSpheres.Points;
         var grid = m_PoissonSpheres.Grid;
 
+        object furthestApartSpheresLock = new object();
+        //Parallel.For(0, points.Count, (i) => { 
         for (int i = 0; i < points.Count; i++)    
         {
             Point p = points[i];
@@ -316,8 +320,7 @@ public class CaveGenerator : MonoBehaviour
             Heap<NearestPoint> heap = new Heap<NearestPoint>(searchWidth * searchWidth * searchWidth);
 
 
-            int tempGridPos = grid[gridPos.x, gridPos.y, gridPos.z];
-            grid[gridPos.x, gridPos.y, gridPos.z] = -1;
+
             for (int z = startZ; z <= endZ; z++)
             {
                 for (int y = startY; y <= endY; y++)
@@ -331,21 +334,19 @@ public class CaveGenerator : MonoBehaviour
                     }
                 }
             }
-            grid[gridPos.x, gridPos.y, gridPos.z] = tempGridPos;
 
-
+            heap.Pop(); // Pop itself from the heap;
             while (heap.Count > 0 && p.NextList.Count < idealNumOfNeighbours)
             {
                 var item = heap.Pop();
                 item.CalculateDist();
                 p.NextList.Add(item);
 
-                m_FurthestApartConnectedSpheres = Mathf.Max(item.Dist, m_FurthestApartConnectedSpheres);
-            }
 
-            m_MinNearest = Mathf.Min(p.NextList.Count, m_MinNearest);
-            m_MaxNearest = Mathf.Max(p.NextList.Count, m_MaxNearest);
-        }
+                m_FurthestApartConnectedSpheres = Mathf.Max(item.Dist, m_FurthestApartConnectedSpheres);
+                
+            }
+        }//);
         //Debug.Log(m_FurthestApartConnectedSpheres);
         //Debug.Log("min: " + m_MinNearest + ", max: " + m_MaxNearest);
     }
@@ -428,7 +429,7 @@ public class CaveGenerator : MonoBehaviour
         }
 
 
-        Heap<Node> open = new Heap<Node>(points.Count * m_MaxNearest);
+        Heap<Node> open = new Heap<Node>(points.Count * m_IdealNumOfNearest);
         float startHCost = (startPoint.Pos - endPoint.Pos).magnitude;
         open.Add(new Node(startPoint.Index, null, 0.0f, startHCost));
         lowestFCost[startPoint.Index] = startHCost;
