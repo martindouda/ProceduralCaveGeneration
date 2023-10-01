@@ -1,13 +1,11 @@
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.Profiling;
 using static PoissonSpheres;
 
-[ExecuteInEditMode]
+[ExecuteInEditMode, RequireComponent(typeof(SpherePool))]
 public class CaveGenerator : MonoBehaviour
 {
     public static CaveGenerator Instance;
@@ -23,29 +21,32 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField] private Material[] m_Materials = new Material[(int)PoissonSpheres.SphereType._SIZE];
 
 
-    [Space(20)][Header("RENDERING OPTIONS")]
+    [Space(20), Header("RENDERING OPTIONS")]
     [SerializeField] private bool m_RenderPoints = false;
-    [SerializeField] private float m_PointSize = 0.5f;
+    [SerializeField, Range(0.0f, 1.0f)] private float m_PointSize = 0.5f;
     [SerializeField] private bool m_RenderNeighboursVisualization = true;
     [SerializeField] private bool m_VisualizeOnPointMovement = true;
-    [Space(20)][Header("POISSON SPHERES")]
-    [SerializeField] private Vector3 m_Size = new Vector3(10.0f, 10.0f, 10.0f);
-    [SerializeField][Range(0.5f, 5.0f)] private float m_MinSphereRadius = 1.0f;
-    [SerializeField][Range(0.5f, 5.0f)] private float m_MaxSphereRadius = 3.0f;
-    [SerializeField][Range(1.0f, 10.0f)] private float m_SpacingLimit = 2.0f;
-    [SerializeField][Range(1, 100)] private int m_NumSamplesBeforeRejection = 30;
-    [Space(20)][Header("SPHERES CONNECTION")]
-    [SerializeField][Range(1, 10)] private int m_SearchDistance = 5;
-    [SerializeField][Range(1, 100)] private int m_IdealNumOfNearest = 30;
-    [Space(20)][Header("PATH GENERATION")]
-    [SerializeField][Range(0.0f, 100.0f)] private float m_HorizonsWeight = 10.0f;
-    [SerializeField][Range(0.0f, 100.0f)] private float m_FracturesWeight = 10.0f;
-    [Space(20)][Header("PRONING")]
-    [SerializeField][Range(0.0f, 100.0f)] private float m_ProningExponent = 1.0f;
-    [Space(20)][Header("RAMIFICATION")]
-    [SerializeField][Range(0.0f, 1.0f)] private float m_BranchesPerPathNodeCoefficient = 0.5f;
-    [SerializeField][Range(0.0f, 100.0f)] private float m_MaxDistFromPath = 10.0f;
-    [SerializeField][Range(0.0f, 1.0f)] private float m_ProbabilityOfBranchSpawn = 0.5f;
+    [Space(20), Header("POISSON SPHERES")]
+    [SerializeField] private Vector3Int m_Size = new Vector3Int(50, 50, 50);
+    [SerializeField, Range(0.5f, 5.0f)] private float m_MinSphereRadius = 1.0f;
+    [SerializeField, Range(0.5f, 5.0f)] private float m_MaxSphereRadius = 3.0f;
+    [SerializeField, Range(1.0f, 10.0f)] private float m_SpacingLimit = 2.0f;
+    [SerializeField, Range(1, 100)] private int m_NumSamplesBeforeRejection = 30;
+    [Space(20), Header("SPHERES CONNECTION")]
+    [SerializeField, Range(1, 10)] private int m_SearchDistance = 5;
+    [SerializeField, Range(1, 100)] private int m_IdealNumOfNearest = 30;
+    [Space(20), Header("PATH GENERATION")]
+    [SerializeField, Range(0.0f, 100.0f)] private float m_HorizonsWeight = 10.0f;
+    [SerializeField, Range(0.0f, 100.0f)] private float m_FracturesWeight = 10.0f;
+    [Space(20), Header("PRONING")]
+    [SerializeField, Range(0.0f, 100.0f)] private float m_ProningExponent = 1.0f;
+    [Space(20), Header("RAMIFICATION")]
+    [SerializeField, Range(0.0f, 1.0f)] private float m_BranchesPerPathNodeCoefficient = 0.5f;
+    [SerializeField, Range(0.0f, 100.0f)] private float m_MaxDistFromPath = 10.0f;
+    [SerializeField, Range(0.0f, 1.0f)] private float m_ProbabilityOfBranchSpawn = 0.5f;
+    [Space(20), Header("MESH GENERATION")]
+    private MeshGenerator m_MeshGenerator;
+    [SerializeField, Range(0.1f, 10.0f)] private float m_TerrainEditsPerUnit = 2.0f;
 
     // Poisson spheres
     private PoissonSpheres m_PoissonSpheres;
@@ -82,6 +83,7 @@ public class CaveGenerator : MonoBehaviour
         m_Fractures = new List<Fracture>();
         m_SpherePool = GetComponent<SpherePool>();
         m_Paths = new List<Path>();
+        m_MeshGenerator = GetComponentInChildren<MeshGenerator>();
     }
 
     // Detect key point's movement.
@@ -212,9 +214,28 @@ public class CaveGenerator : MonoBehaviour
         }
         m_SpherePool.PutUnusedToSleep();
 
-
         VisualizationTime = Time.realtimeSinceStartup - time;
         //Debug.Log("Visualization took: " + m_VisualizationTime + "ms");
+            
+        m_MeshGenerator.Generate(m_Size);
+        foreach (var path in m_Paths)
+        {
+            float pathLength = 0.0f;
+            for (int i = 0; i < path.Points.Count - 1; i++)
+            {
+                pathLength += (path.Points[i].Pos - path.Points[i + 1].Pos).magnitude;
+            }
+            int stepsCount = Mathf.CeilToInt(pathLength * m_TerrainEditsPerUnit);
+            float stepSize = pathLength / stepsCount;
+            for (int i = 0; i < stepsCount; i++)
+            {
+                float continousIndex = (i * stepSize) / pathLength * (path.Points.Count-1);
+                Vector3 posToEdit = Vector3.Lerp(path.Points[(int)continousIndex].Pos, path.Points[(int)continousIndex + 1].Pos, continousIndex - (int)continousIndex);
+                m_MeshGenerator.RemoveFromTerrain(posToEdit - new Vector3(m_Size.x / 2.0f, 0.0f, m_Size.z / 2.0f));
+            }
+        }
+        m_MeshGenerator.CreateShape();
+        m_MeshGenerator.UpdateMesh();
     }
 
     // Generates addition tunnels spreading from the paths.

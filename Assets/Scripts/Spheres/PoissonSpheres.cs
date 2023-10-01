@@ -6,7 +6,7 @@ using UnityEngine;
 // Poisson's spheres is a random sphere distribution of non intersecting spheres in the 3D space.
 public class PoissonSpheres
 {
-    private Vector3 m_Size;
+    private Vector3Int m_Size;
     private float m_MinSphereRadius;
     private float m_MaxSphereRadius;
     private float m_CellSize;
@@ -85,7 +85,7 @@ public class PoissonSpheres
     }
 
     // Constructor which initializes the variables.
-    public PoissonSpheres(Vector3 size, float minSphereRadius, float maxSphereRadius, float spacingLimit) 
+    public PoissonSpheres(Vector3Int size, float minSphereRadius, float maxSphereRadius, float spacingLimit) 
     {
         m_Size = size;
         m_MinSphereRadius = minSphereRadius;
@@ -116,7 +116,7 @@ public class PoissonSpheres
         }
 
 
-        spawnPoints.Add(new Point(m_Size / 2.0f, Random.Range(m_MinSphereRadius, m_MaxSphereRadius), 0));
+        spawnPoints.Add(new Point((Vector3)m_Size / 2.0f, Random.Range(m_MinSphereRadius, m_MaxSphereRadius), 0));
         while (spawnPoints.Count > 0)
         {
             int spawnIndex = Random.Range(0, spawnPoints.Count);
