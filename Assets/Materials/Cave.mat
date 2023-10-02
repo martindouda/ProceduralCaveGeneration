@@ -27,10 +27,12 @@ Material:
     m_Floats:
     - _BUILTIN_QueueControl: 0
     - _BUILTIN_QueueOffset: 0
-    - _DisplacementMultiplier: 0.1
+    - _DisplacementMultiplier: 0.25
+    - _Metallic: 0
+    - _Smoothness: 0.186
     m_Colors:
     - _Tiling: {r: 500, g: 500, b: 0, a: 0}
-    - _WallColor: {r: 0.7830189, g: 0.7830189, b: 0.7830189, a: 0}
+    - _WallColor: {r: 0.5188679, g: 0.5188679, b: 0.5188679, a: 0}
   m_BuildTextureStacks: []
 --- !u!114 &7589134427793736441
 MonoBehaviour:

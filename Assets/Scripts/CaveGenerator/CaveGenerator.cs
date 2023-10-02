@@ -228,11 +228,18 @@ public class CaveGenerator : MonoBehaviour
             {
                 float continousIndex = (i * stepSize) / pathLength * (path.Points.Count-1);
                 Vector3 posToEdit = Vector3.Lerp(path.Points[(int)continousIndex].Pos, path.Points[(int)continousIndex + 1].Pos, continousIndex - (int)continousIndex);
-                m_MeshGenerator.RemoveFromTerrain(posToEdit - new Vector3(m_Size.x / 2.0f, 0.0f, m_Size.z / 2.0f));
+                RemoveAtPosition(posToEdit - new Vector3(m_Size.x / 2.0f, 0.0f, m_Size.z / 2.0f));
             }
         }
         m_MeshGenerator.CreateShape();
         m_MeshGenerator.UpdateMesh();
+    }
+
+    private void RemoveAtPosition(Vector3 pos)
+    {
+        m_MeshGenerator.RemoveFromTerrain(pos);
+        m_MeshGenerator.RemoveFromTerrain(pos + new Vector3(0.0f, 1.0f, 0.0f));
+        m_MeshGenerator.RemoveFromTerrain(pos - new Vector3(0.0f, 1.0f, 0.0f));
     }
 
     // Generates addition tunnels spreading from the paths.

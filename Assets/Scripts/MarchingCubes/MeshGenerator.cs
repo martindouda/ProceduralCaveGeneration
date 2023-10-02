@@ -8,6 +8,7 @@ public class MeshGenerator : MonoBehaviour
     private Mesh m_Mesh;
 
     private List<Vector3> m_Vertices;
+    private List<Vector3> m_Normals;
     private List<int> m_Triangles;
 
     private Vector3Int m_Size;
@@ -65,6 +66,7 @@ public class MeshGenerator : MonoBehaviour
     public void CreateShape()
     {
         m_Vertices = new List<Vector3>();
+        m_Normals = new List<Vector3>();
         m_Triangles = new List<int>();
         m_VertexDict = new Dictionary<Vector3, int>();
 
@@ -91,7 +93,7 @@ public class MeshGenerator : MonoBehaviour
 
                     for (int i = 0; i < 8; i++)
                     {
-                        if (cubeValues[i] >= m_Boundry) cubeIndex |= 1 << i; 
+                        if (cubeValues[i] >= m_Boundry) cubeIndex |= 1 << i;
                     }
 
                     int[] edges = MarchingCubesTables.triTable[cubeIndex];
@@ -108,13 +110,24 @@ public class MeshGenerator : MonoBehaviour
                         int c1 = MarchingCubesTables.edgeConnections[edges[i + 2]][1];
 
                         Vector3 pos = new Vector3(x - m_Size.x / 2f, y - Mathf.CeilToInt(m_EditSize), z - m_Size.z / 2f);
-                        
-                        AddVertex(pos, MarchingCubesTables.cubeCorners[a0], cubeValues[a0], MarchingCubesTables.cubeCorners[a1], cubeValues[a1]);
-                        AddVertex(pos, MarchingCubesTables.cubeCorners[c0], cubeValues[c0], MarchingCubesTables.cubeCorners[c1], cubeValues[c1]);
-                        AddVertex(pos, MarchingCubesTables.cubeCorners[b0], cubeValues[b0], MarchingCubesTables.cubeCorners[b1], cubeValues[b1]);
+
+
+                        Vector3 vertexPos1 = GetMarchingCubesVertex(pos, MarchingCubesTables.cubeCorners[a0], cubeValues[a0], MarchingCubesTables.cubeCorners[a1], cubeValues[a1]);
+                        Vector3 vertexPos2 = GetMarchingCubesVertex(pos, MarchingCubesTables.cubeCorners[c0], cubeValues[c0], MarchingCubesTables.cubeCorners[c1], cubeValues[c1]);
+                        Vector3 vertexPos3 = GetMarchingCubesVertex(pos, MarchingCubesTables.cubeCorners[b0], cubeValues[b0], MarchingCubesTables.cubeCorners[b1], cubeValues[b1]);
+
+                        Vector3 normal = Vector3.Cross(vertexPos2 - vertexPos1, vertexPos3 - vertexPos1).normalized;
+
+                        AddVertex(vertexPos1, normal);
+                        AddVertex(vertexPos2, normal);
+                        AddVertex(vertexPos3, normal);
                     }
                 }
             }
+        }
+        for (int i = 0; i < m_Normals.Count; i++)
+        {
+            m_Normals[i] = m_Normals[i].normalized;
         }
     }
 
@@ -123,25 +136,31 @@ public class MeshGenerator : MonoBehaviour
         return m_Grid[x + z * (m_Size.x + 1) + y * (m_Size.x + 1) * (m_Size.z + 1)];
     }
 
-    private void AddVertex(Vector3 pos, Vector3 vert0, float val0, Vector3 vert1, float val1)
+    private Vector3 GetMarchingCubesVertex(Vector3 pos, Vector3 vert0, float val0, Vector3 vert1, float val1) {
+        Vector3 ret = pos + (vert0 + (m_Boundry - val0) * (vert1 - vert0) / (val1 - val0));
+        return new Vector3(((int)(ret.x * 100.0f + 0.5f)) / 100.0f, ((int)(ret.y * 100.0f + 0.5f)) / 100.0f, ((int)(ret.z * 100.0f + 0.5f)) / 100.0f);
+    }
+
+    private void AddVertex(Vector3 pos, Vector3 normal)
     {
-        Vector3 vertexToAdd = pos + (vert0 + (m_Boundry - val0) * (vert1 - vert0) / (val1 - val0));
-        if (m_VertexDict.ContainsKey(vertexToAdd))
+        if (m_VertexDict.ContainsKey(pos))
         {
-            m_Triangles.Add(m_VertexDict[vertexToAdd]);
+            m_Triangles.Add(m_VertexDict[pos]);
+            m_Normals[m_VertexDict[pos]] += normal;
             return;
         }
-        m_VertexDict[vertexToAdd] = m_Vertices.Count;
+        m_VertexDict[pos] = m_Vertices.Count;
         m_Triangles.Add(m_Vertices.Count);
-        m_Vertices.Add(pos + (vert0 + (m_Boundry - val0) * (vert1 - vert0) / (val1 - val0)));
+        m_Vertices.Add(pos);
+        m_Normals.Add(normal);
     }
 
     public void UpdateMesh()
     {
         m_Mesh.Clear();
         m_Mesh.SetVertices(m_Vertices);
+        m_Mesh.SetNormals(m_Normals);
         m_Mesh.SetTriangles(m_Triangles, 0);
-        m_Mesh.RecalculateNormals();
         GetComponent<MeshCollider>().sharedMesh = m_Mesh;
     }
 
