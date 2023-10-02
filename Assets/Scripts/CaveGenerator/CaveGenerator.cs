@@ -22,10 +22,11 @@ public class CaveGenerator : MonoBehaviour
 
 
     [Space(20), Header("RENDERING OPTIONS")]
-    [SerializeField] private bool m_RenderPoints = false;
+    [SerializeField] private bool m_RenderPointsTrueSpheresFalse = false;
     [SerializeField, Range(0.0f, 1.0f)] private float m_PointSize = 0.5f;
     [SerializeField] private bool m_RenderNeighboursVisualization = true;
-    [SerializeField] private bool m_VisualizeOnPointMovement = true;
+    [SerializeField] private bool m_RenderPointsAndSpheres = true;
+    [SerializeField] private bool m_RenderLines = true;
     [Space(20), Header("POISSON SPHERES")]
     [SerializeField] private Vector3Int m_Size = new Vector3Int(50, 50, 50);
     [SerializeField, Range(0.5f, 5.0f)] private float m_MinSphereRadius = 1.0f;
@@ -45,8 +46,10 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField, Range(0.0f, 100.0f)] private float m_MaxDistFromPath = 10.0f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_ProbabilityOfBranchSpawn = 0.5f;
     [Space(20), Header("MESH GENERATION")]
-    private MeshGenerator m_MeshGenerator;
+    [SerializeField, Range(0.0f, 1.0f)] private float m_MarchingCubesBoundry = 0.5f;
     [SerializeField, Range(0.1f, 10.0f)] private float m_TerrainEditsPerUnit = 2.0f;
+    [SerializeField, Range(0.1f, 5.0f)] private float m_SingleEditRadius = 2.0f;
+    [SerializeField, Range(0.01f, 1.0f)] private float m_SingleEditPower = 1.0f;
 
     // Poisson spheres
     private PoissonSpheres m_PoissonSpheres;
@@ -62,6 +65,9 @@ public class CaveGenerator : MonoBehaviour
     private List<float> m_CachedHorizonsHeights;
     private List<Fracture> m_Fractures;
     private List<Path> m_Paths;
+
+    // Mesh generator
+    private MeshGenerator m_MeshGenerator;
 
 
     [HideInInspector] public float GenerationTime = 0.0f;
@@ -90,20 +96,6 @@ public class CaveGenerator : MonoBehaviour
     private void Update()
     {
         Instance = this;
-        if (m_PoissonSpheres == null) return;
-
-        if (m_VisualizeOnPointMovement)
-        {
-            foreach (var keyPoint in m_KeyPoints)
-            {
-                if (keyPoint.transform.position != keyPoint.LastPos)
-                {
-                    keyPoint.LastPos = keyPoint.transform.position;
-                    Visualize();
-                    return;
-                }
-            }
-        }
     }
 
     // Draw the borders of the cave and the horizons.
@@ -188,28 +180,33 @@ public class CaveGenerator : MonoBehaviour
 
         PronePaths();
         GenerateBranches();
-
-        foreach (var path in m_Paths)
+        if (m_RenderLines)
         {
-            path.Visualize(m_PoissonSpheres, Instantiate(m_LineRendererPrefab, m_LineRenderersParent));
+            foreach (var path in m_Paths)
+            {
+                path.Visualize(m_PoissonSpheres, Instantiate(m_LineRendererPrefab, m_LineRenderersParent));
+            }
         }
 
 
         Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
-        if (m_RenderPoints)
+        if (m_RenderPointsAndSpheres)
         {
-            for (int i = 0; i < points.Count; i++)
+            if (m_RenderPointsTrueSpheresFalse)
             {
-                if (points[i].VisualSphereType == SphereType.WHITE) continue;
-                m_SpherePool.WakeSphere(points[i].Pos - toCenterOffset, m_PointSize, m_Materials[(int)points[i].VisualSphereType], i);
+                for (int i = 0; i < points.Count; i++)
+                {
+                    if (points[i].VisualSphereType == SphereType.WHITE) continue;
+                    m_SpherePool.WakeSphere(points[i].Pos - toCenterOffset, m_PointSize, m_Materials[(int)points[i].VisualSphereType], i);
+                }
             }
-        } 
-        else
-        {
-            for (int i = 0; i < points.Count; i++)
+            else
             {
-                if (points[i].VisualSphereType == SphereType.WHITE) continue;
-                m_SpherePool.WakeSphere(points[i].Pos - toCenterOffset, points[i].Radius * 2.0f, m_Materials[(int)points[i].VisualSphereType], i);
+                for (int i = 0; i < points.Count; i++)
+                {
+                    if (points[i].VisualSphereType == SphereType.WHITE) continue;
+                    m_SpherePool.WakeSphere(points[i].Pos - toCenterOffset, points[i].Radius * 2.0f, m_Materials[(int)points[i].VisualSphereType], i);
+                }
             }
         }
         m_SpherePool.PutUnusedToSleep();
@@ -217,7 +214,7 @@ public class CaveGenerator : MonoBehaviour
         VisualizationTime = Time.realtimeSinceStartup - time;
         //Debug.Log("Visualization took: " + m_VisualizationTime + "ms");
             
-        m_MeshGenerator.Generate(m_Size);
+        m_MeshGenerator.Generate(m_Size, m_MarchingCubesBoundry, m_SingleEditPower, m_SingleEditRadius);
         foreach (var path in m_Paths)
         {
             float pathLength = 0.0f;
@@ -273,11 +270,24 @@ public class CaveGenerator : MonoBehaviour
     private void LoadKeyPoints()
     {
         m_KeyPoints.Clear();
-        for (int i = 0; i < m_KeyPointsParent.childCount; i++)
+        if (m_RenderPointsAndSpheres)
         {
-            Transform horizonTransform = m_KeyPointsParent.GetChild(i);
-            KeyPoint keyPoint = horizonTransform.GetComponent<KeyPoint>();
-            m_KeyPoints.Add(keyPoint);
+            for (int i = 0; i < m_KeyPointsParent.childCount; i++)
+            {
+                Transform horizonTransform = m_KeyPointsParent.GetChild(i);
+                KeyPoint keyPoint = horizonTransform.GetComponent<KeyPoint>();
+                m_KeyPoints.Add(keyPoint);
+                keyPoint.gameObject.SetActive(true);
+            }
+        } else
+        {
+            for (int i = 0; i < m_KeyPointsParent.childCount; i++)
+            {
+                Transform horizonTransform = m_KeyPointsParent.GetChild(i);
+                KeyPoint keyPoint = horizonTransform.GetComponent<KeyPoint>();
+                m_KeyPoints.Add(keyPoint);
+                keyPoint.gameObject.SetActive(false);
+            }
         }
     }
 
