@@ -22,14 +22,28 @@ Material:
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
-    m_TexEnvs: []
+    m_TexEnvs:
+    - _Texture:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Triplanar_05fb175ed5934eaf8e6ed01071f03bd2_Texture_1_Texture2D:
+        m_Texture: {fileID: 10309, guid: 0000000000000000f000000000000000, type: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Triplanar_4e8c8ab9b9f242cc985933115ba43e76_Texture_1_Texture2D:
+        m_Texture: {fileID: 2800000, guid: bb13f8f90e83d6247881dff4941dd0fa, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _BUILTIN_QueueControl: 0
     - _BUILTIN_QueueOffset: 0
+    - _Blending: 1
     - _DisplacementMultiplier: 0.25
     - _Metallic: 0
     - _Smoothness: 0.186
+    - _Tiling: 0.3
     m_Colors:
     - _Tiling: {r: 500, g: 500, b: 0, a: 0}
     - _WallColor: {r: 0.5188679, g: 0.5188679, b: 0.5188679, a: 0}
