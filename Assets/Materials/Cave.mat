@@ -40,7 +40,7 @@ Material:
     - _BUILTIN_QueueControl: 0
     - _BUILTIN_QueueOffset: 0
     - _Blending: 1
-    - _DisplacementMultiplier: 0.25
+    - _DisplacementMultiplier: 0
     - _Metallic: 0
     - _Smoothness: 0.186
     - _Tiling: 0.3

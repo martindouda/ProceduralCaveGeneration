@@ -18,6 +18,8 @@ public class CaveGenerator : MonoBehaviour
 
     [SerializeField] private LineRenderer m_LineRendererPrefab;
 
+    [SerializeField] private SweepingPrimitiveGenerator m_SweepingPrimitiveGenerator;
+
     [SerializeField] private Material[] m_Materials = new Material[(int)PoissonSpheres.SphereType._SIZE];
 
 
@@ -107,6 +109,12 @@ public class CaveGenerator : MonoBehaviour
             Gizmos.DrawSphere(m_HorizonsParent.GetChild(i).position, 1.0f);
         }
         Gizmos.DrawWireCube(new Vector3(transform.position.x, transform.position.y + m_Size.y/2, transform.position.z), m_Size);
+        
+        // Draw tangents;
+        /*for (int i = 0; i < m_Tangents.Count; i++)
+        {
+            Gizmos.DrawLine(m_TangentsPos[i], m_TangentsPos[i] + m_Tangents[i]);
+        }*/
     }
 
     // Generate a new cave.
@@ -227,19 +235,30 @@ public class CaveGenerator : MonoBehaviour
             for (int i = 0; i < stepsCount; i++)
             {
                 float continousIndex = (i * stepSize) / pathLength * (path.Points.Count-1);
+                Vector3 tangent = (path.Points[(int)continousIndex].Pos - path.Points[(int)continousIndex + 1].Pos).normalized;
                 Vector3 posToEdit = Vector3.Lerp(path.Points[(int)continousIndex].Pos, path.Points[(int)continousIndex + 1].Pos, continousIndex - (int)continousIndex);
-                RemoveAtPosition(posToEdit - new Vector3(m_Size.x / 2.0f, 0.0f, m_Size.z / 2.0f));
+                RemoveAtPosition(posToEdit - new Vector3(m_Size.x / 2.0f, 0.0f, m_Size.z / 2.0f), tangent);
             }
         }
         m_MeshGenerator.CreateShape();
         m_MeshGenerator.UpdateMesh();
     }
 
-    private void RemoveAtPosition(Vector3 pos)
+    /*List<Vector3> m_Tangents = new List<Vector3>();
+    List<Vector3> m_TangentsPos = new List<Vector3>();*/
+    private void RemoveAtPosition(Vector3 pos, Vector3 tangent)
     {
-        m_MeshGenerator.RemoveFromTerrain(pos);
+        /*m_Tangents.Add(tangent);
+        m_TangentsPos.Add(pos);*/
+        var primitivePoints = m_SweepingPrimitiveGenerator.GeneratePoints(tangent);
+        //Debug.Log(primitivePoints.Count);
+        foreach (var point in primitivePoints)
+        {       
+            m_MeshGenerator.RemoveFromTerrain(pos + point);
+        }
+        /*m_MeshGenerator.RemoveFromTerrain(pos);
         m_MeshGenerator.RemoveFromTerrain(pos + new Vector3(0.0f, 1.0f, 0.0f));
-        m_MeshGenerator.RemoveFromTerrain(pos - new Vector3(0.0f, 1.0f, 0.0f));
+        m_MeshGenerator.RemoveFromTerrain(pos - new Vector3(0.0f, 1.0f, 0.0f));*/
     }
 
     // Generates addition tunnels spreading from the paths.

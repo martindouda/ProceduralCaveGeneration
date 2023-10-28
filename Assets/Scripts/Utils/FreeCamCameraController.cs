@@ -9,7 +9,7 @@ public class FreeCamCameraController : MonoBehaviour
     [SerializeField] private float m_LookSpeed = 1.0f;
     [SerializeField] private float m_SpotLightLerpCoef = 0.06f;
 
-
+    private bool m_RotationEnabled = true;
     private float m_RotationX = 0.0f;
 
     private void Start()
@@ -20,6 +20,20 @@ public class FreeCamCameraController : MonoBehaviour
 
     private void Update()
     {
+        if (Input.GetKeyDown(KeyCode.C))
+        {
+            m_RotationEnabled = !m_RotationEnabled;
+            if (m_RotationEnabled)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            } else
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+        }
+
         Vector3 moveVector = Vector3.zero;
         float speedModified = m_Speed;
         if (Input.GetKey(KeyCode.W))
@@ -51,6 +65,8 @@ public class FreeCamCameraController : MonoBehaviour
             speedModified *= 2.0f;
         }
         transform.position += moveVector.normalized * speedModified * Time.deltaTime;
+
+        if (!m_RotationEnabled) return;
 
         m_RotationX -= Input.GetAxis("Mouse Y") * m_LookSpeed;
         m_RotationX = Mathf.Clamp(m_RotationX, -90.0f, 90.0f);
