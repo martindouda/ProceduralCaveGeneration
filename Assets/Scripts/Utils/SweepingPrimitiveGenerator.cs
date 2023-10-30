@@ -15,47 +15,14 @@ public class SweepingPrimitiveGenerator : MonoBehaviour
     [SerializeField] private float m_Radius = 0.5f;
     [SerializeField] private int m_SamplesBeforeRejection = 30;
     [SerializeField] private Vector2 m_RegionSize = new Vector2(10.0f, 10.0f);
-    [SerializeField] Vector3 tangent = new Vector3(1.0f, 1.0f, -1.0f);
 
     private Vector2Int m_GridSize;
     private float m_CellSize;
     private Color[] pixels;
-
-    private void Awake()
-    {
-        pixels = m_Image.GetPixels();
-    }
-
-    void Start()
-    {
-        pixels = m_Image.GetPixels();
-        Color getPixel(int y, int x) { return pixels[y * m_Image.width + x]; }
-
-        var whitePixels = 0;
-        var blackPixels = 0;
-        for (int y = 0; y < m_Image.height; y++)
-        {
-            for (int x = 0; x < m_Image.width; x++)
-            {
-                Color pixel = getPixel(y, x);
-
-                if (pixel == Color.white)
-                    whitePixels++;
-                else
-                    blackPixels++;
-            }
-        }
-
-        Debug.Log("whit: " + whitePixels + ", black: " + blackPixels);
-        tangent = tangent.normalized;
-        GeneratePoints(tangent);
-        transform.LookAt(transform.position - tangent);
-    }
     
     public List<Vector3> GeneratePoints(Vector3 tangent)
     {
-        pixels = m_Image.GetPixels();
-
+        if (pixels == null) pixels = m_Image.GetPixels();
         m_CellSize = m_Radius / Mathf.Sqrt(2.0f);
         m_GridSize = new Vector2Int((int)(m_RegionSize.x / m_CellSize), (int)(m_RegionSize.y / m_CellSize));
 

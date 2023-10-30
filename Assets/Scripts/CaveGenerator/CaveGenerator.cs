@@ -219,7 +219,6 @@ public class CaveGenerator : MonoBehaviour
         }
         m_SpherePool.PutUnusedToSleep();
 
-        VisualizationTime = Time.realtimeSinceStartup - time;
         //Debug.Log("Visualization took: " + m_VisualizationTime + "ms");
             
         m_MeshGenerator.Generate(m_Size, m_MarchingCubesBoundry, m_SingleEditPower, m_SingleEditRadius);
@@ -242,6 +241,9 @@ public class CaveGenerator : MonoBehaviour
         }
         m_MeshGenerator.CreateShape();
         m_MeshGenerator.UpdateMesh();
+
+        VisualizationTime = Time.realtimeSinceStartup - time;
+
     }
 
     /*List<Vector3> m_Tangents = new List<Vector3>();
