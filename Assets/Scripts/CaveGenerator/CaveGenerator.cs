@@ -52,6 +52,8 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField, Range(0.1f, 10.0f)] private float m_TerrainEditsPerUnit = 2.0f;
     [SerializeField, Range(0.1f, 5.0f)] private float m_SingleEditRadius = 2.0f;
     [SerializeField, Range(0.01f, 1.0f)] private float m_SingleEditPower = 1.0f;
+    [Space(20), Header("SWEEPING PRIMITIVES")]
+
 
     // Poisson spheres
     private PoissonSpheres m_PoissonSpheres;
@@ -144,6 +146,8 @@ public class CaveGenerator : MonoBehaviour
         }
 
 
+
+
         m_SpherePool.NewRound();
         List<Point> points = m_PoissonSpheres.Points;
         for (int i = 0; i < points.Count; i++)
@@ -220,7 +224,7 @@ public class CaveGenerator : MonoBehaviour
         m_SpherePool.PutUnusedToSleep();
 
         //Debug.Log("Visualization took: " + m_VisualizationTime + "ms");
-            
+        m_SweepingPrimitiveGenerator.LoadPixels();
         m_MeshGenerator.Generate(m_Size, m_MarchingCubesBoundry, m_SingleEditPower, m_SingleEditRadius);
         foreach (var path in m_Paths)
         {
@@ -243,7 +247,6 @@ public class CaveGenerator : MonoBehaviour
         m_MeshGenerator.UpdateMesh();
 
         VisualizationTime = Time.realtimeSinceStartup - time;
-
     }
 
     /*List<Vector3> m_Tangents = new List<Vector3>();
@@ -252,7 +255,7 @@ public class CaveGenerator : MonoBehaviour
     {
         /*m_Tangents.Add(tangent);
         m_TangentsPos.Add(pos);*/
-        var primitivePoints = m_SweepingPrimitiveGenerator.GeneratePoints(tangent);
+        var primitivePoints = m_SweepingPrimitiveGenerator.GeneratePoints(tangent, pos.y / m_Size.y);
         //Debug.Log(primitivePoints.Count);
         foreach (var point in primitivePoints)
         {       

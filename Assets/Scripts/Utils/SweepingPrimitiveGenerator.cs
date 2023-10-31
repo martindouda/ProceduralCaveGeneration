@@ -9,20 +9,52 @@ using static UnityEngine.GraphicsBuffer;
 
 public class SweepingPrimitiveGenerator : MonoBehaviour
 {
-    [SerializeField] private Texture2D m_Image;
-    [SerializeField] private Transform m_Prefab;
+    [SerializeField] private Texture2D m_ImageBed; private Color[] m_PixelsBed;
+    [SerializeField] private Texture2D m_ImageTube; private Color[] m_PixelsTube;
+    [SerializeField] private Texture2D m_ImageKeyhole; private Color[] m_PixelsKeyhole;
+    [SerializeField] private Texture2D m_ImageCanyon; private Color[] m_PixelsCanyon;
+    [SerializeField] private Texture2D m_ImagePassage; private Color[] m_PixelsPassage;
 
     [SerializeField] private float m_Radius = 0.5f;
     [SerializeField] private int m_SamplesBeforeRejection = 30;
     [SerializeField] private Vector2 m_RegionSize = new Vector2(10.0f, 10.0f);
 
+    [SerializeField, Range(0.0f, 1.0f)] private float m_VerticalityCoefficient = 0.707f;
+    [SerializeField, Range(0.0f, 1.0f)] private float m_DistanceFromWaterTableKeyhole = 0.3f;
+    [SerializeField, Range(0.0f, 1.0f)] private float m_DistanceFromWaterTableCanyon = 0.6f;
+    [SerializeField, Range(0.0f, 1.0f)] private float m_DistanceFromWaterTablePassage = 0.5f;
+
+
     private Vector2Int m_GridSize;
     private float m_CellSize;
     private Color[] pixels;
     
-    public List<Vector3> GeneratePoints(Vector3 tangent)
+
+    public void LoadPixels()
     {
-        if (pixels == null) pixels = m_Image.GetPixels();
+        m_PixelsBed = m_ImageBed.GetPixels();
+        m_PixelsTube = m_ImageTube.GetPixels();
+        m_PixelsKeyhole = m_ImageKeyhole.GetPixels();
+        m_PixelsCanyon = m_ImageCanyon.GetPixels();
+        m_PixelsPassage = m_ImagePassage.GetPixels();
+    }
+
+    public List<Vector3> GeneratePoints(Vector3 tangent, float yNormalized)
+    {
+        float verticality = Mathf.Abs(tangent.y);
+        if (verticality > m_VerticalityCoefficient)
+        {
+            if (yNormalized > m_DistanceFromWaterTablePassage)      pixels = m_PixelsPassage;
+            else                                                    pixels = m_PixelsTube;
+        }
+        else
+        {
+            if (yNormalized >= m_DistanceFromWaterTableCanyon) pixels = m_PixelsCanyon;
+            else if (yNormalized >= m_DistanceFromWaterTableKeyhole)     pixels = m_PixelsKeyhole;
+            else                                                    pixels = m_PixelsBed;
+        }
+                                                     
+
         m_CellSize = m_Radius / Mathf.Sqrt(2.0f);
         m_GridSize = new Vector2Int((int)(m_RegionSize.x / m_CellSize), (int)(m_RegionSize.y / m_CellSize));
 
@@ -119,10 +151,10 @@ public class SweepingPrimitiveGenerator : MonoBehaviour
 
     private bool FitsInImage(Vector2 candidate)
     {
-        int x = (int)(m_Image.width * candidate.x / (m_CellSize * m_GridSize.x));
-        int y = (int)(m_Image.height * candidate.y / (m_CellSize * m_GridSize.y));
+        int x = (int)(m_ImageBed.width * candidate.x / (m_CellSize * m_GridSize.x));
+        int y = (int)(m_ImageBed.height * candidate.y / (m_CellSize * m_GridSize.y));
 
-        if (pixels[y * m_Image.width + x] == Color.white)
+        if (pixels[y * m_ImageBed.width + x] == Color.white)
         {
             return false;
         }
