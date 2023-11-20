@@ -1,9 +1,11 @@
 using System.ComponentModel;
 using UnityEngine;
+using UnityEngine.Experimental.GlobalIllumination;
 
 public class FreeCamCameraController : MonoBehaviour
 {
     [SerializeField] private Transform m_SpotLight;
+    [SerializeField] private SpotLight m_SpotLightLight;
 
     [SerializeField] private float m_Speed = 20.0f;
     [SerializeField] private float m_LookSpeed = 1.0f;
@@ -33,6 +35,11 @@ public class FreeCamCameraController : MonoBehaviour
                 Cursor.visible = true;
             }
         }
+        if (Input.GetKeyDown(KeyCode.F))
+        {
+            m_SpotLight.gameObject.SetActive(!m_SpotLight.gameObject.activeSelf);
+        }
+
 
         Vector3 moveVector = Vector3.zero;
         float speedModified = m_Speed;
