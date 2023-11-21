@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 705507994}
-  m_IndirectSpecularColor: {r: 0.07704926, g: 0.104806736, b: 0.1761172, a: 1}
+  m_IndirectSpecularColor: {r: 0.123811975, g: 0.17291166, b: 0.3059261, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -250,7 +250,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &199964397
 Transform:
   m_ObjectHideFlags: 0
@@ -259,13 +259,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 199964396}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.28625268, y: -0, z: -0, w: 0.9581542}
-  m_LocalPosition: {x: 13.96, y: 60.347, z: -22.687}
+  m_LocalRotation: {x: -0.0014829588, y: -0.37274894, z: 0.0006255481, w: 0.92793083}
+  m_LocalPosition: {x: 4.015, y: 53.099, z: 2.351}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1774167104}
-  m_LocalEulerAnglesHint: {x: 33.268, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: -0.131, y: -763.771, z: 0.13}
 --- !u!114 &199964398
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -278,7 +278,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7a68c43fe1f2a47cfa234b5eeaa98012, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Intensity: 2438.5842
+  m_Intensity: 500
   m_EnableSpotReflector: 1
   m_LuxAtDistance: 1
   m_InnerSpotPercent: 0
@@ -400,9 +400,9 @@ Light:
   m_Type: 0
   m_Shape: 0
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_Intensity: 5098.6626
-  m_Range: 30
-  m_SpotAngle: 45
+  m_Intensity: 849.3496
+  m_Range: 20
+  m_SpotAngle: 50
   m_InnerSpotAngle: 4
   m_CookieSize: 10
   m_Shadows:
@@ -869,13 +869,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 705507993}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.516798, y: -0.2437206, z: -0.35005754, w: 0.7422802}
+  m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
   m_LocalPosition: {x: 12.17, y: 73.09, z: -0.13}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1774167104}
-  m_LocalEulerAnglesHint: {x: 36.626, y: -64.379, z: -74.034}
+  m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
 --- !u!114 &705507996
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1956,7 +1956,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 57995ea53aeacee40b11c694149b626e, type: 2}
+  - {fileID: 2100000, guid: 25fda74e7b424cb47a5213e227379311, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -2004,7 +2004,7 @@ Transform:
   m_GameObject: {fileID: 1595996505}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 30, z: -60}
+  m_LocalPosition: {x: 0, y: 45.63, z: -28.6}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2024,7 +2024,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_SpotLight: {fileID: 199964397}
-  m_Speed: 20
+  m_Speed: 5
   m_LookSpeed: 1
   m_SpotLightLerpCoef: 0.06
 --- !u!1 &1636775011
