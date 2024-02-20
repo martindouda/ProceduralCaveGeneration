@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Unity.VisualScripting;
 using UnityEngine;
 using static PoissonSpheres;
 
@@ -23,12 +22,6 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField] private Material[] m_Materials = new Material[(int)PoissonSpheres.SphereType._SIZE];
 
 
-    [Space(20), Header("RENDERING OPTIONS")]
-    [SerializeField] private bool m_RenderPointsTrueSpheresFalse = false;
-    [SerializeField, Range(0.0f, 1.0f)] private float m_PointSize = 0.5f;
-    [SerializeField] private bool m_RenderNeighboursVisualization = true;
-    [SerializeField] private bool m_RenderPointsAndSpheres = true;
-    [SerializeField] private bool m_RenderLines = true;
     [Space(20), Header("POISSON SPHERES")]
     [SerializeField] private Vector3Int m_Size = new Vector3Int(50, 50, 50);
     [SerializeField, Range(0.5f, 5.0f)] private float m_MinSphereRadius = 1.0f;
@@ -57,7 +50,7 @@ public class CaveGenerator : MonoBehaviour
 
     // Poisson spheres
     private PoissonSpheres m_PoissonSpheres;
-    [HideInInspector]public int VisualizedSphere = 0;
+    [HideInInspector] public int VisualizedSphere = 0;
 
     private float m_FurthestApartConnectedSpheres = 0.0f;
     private SpherePool m_SpherePool; public SpherePool Pool { get => m_SpherePool; }
@@ -93,7 +86,8 @@ public class CaveGenerator : MonoBehaviour
         m_Fractures = new List<Fracture>();
         m_SpherePool = GetComponent<SpherePool>();
         m_Paths = new List<Path>();
-        m_MeshGenerator = GetComponentInChildren<MeshGenerator>();
+        m_MeshGenerator = GetComponent<MeshGenerator>();
+        RenderMesh(false);
     }
 
     // Detect key point's movement.
@@ -110,76 +104,37 @@ public class CaveGenerator : MonoBehaviour
         {
             Gizmos.DrawSphere(m_HorizonsParent.GetChild(i).position, 1.0f);
         }
-        Gizmos.DrawWireCube(new Vector3(transform.position.x, transform.position.y + m_Size.y/2, transform.position.z), m_Size);
-        
-        // Draw tangents;
-        /*for (int i = 0; i < m_Tangents.Count; i++)
-        {
-            Gizmos.DrawLine(m_TangentsPos[i], m_TangentsPos[i] + m_Tangents[i]);
-        }*/
+        Gizmos.DrawWireCube(new Vector3(transform.position.x, transform.position.y + m_Size.y / 2, transform.position.z), m_Size);
     }
 
-    // Generate a new cave.
-    public void Generate()
+    public void GeneratePoissonSpheres()
     {
         InitializeVariables();
-        m_PoissonSpheres = new PoissonSpheres(m_Size, m_MinSphereRadius, m_MaxSphereRadius, m_SpacingLimit);
-        m_SpherePool = GetComponent<SpherePool>();
-
         float time = Time.realtimeSinceStartup;
+
+        m_PoissonSpheres = new PoissonSpheres(m_Size, m_MinSphereRadius, m_MaxSphereRadius, m_SpacingLimit);
         m_PoissonSpheres.GeneratePoints(m_NumSamplesBeforeRejection);
         ConnectNearest(m_SearchDistance, m_IdealNumOfNearest);
-        GenerationTime = Time.realtimeSinceStartup - time;
 
-        Visualize();
+        GenerationTime = Time.realtimeSinceStartup - time;
     }
 
+    // Generate a new mesh.
 
-    // Recalculate and refresh the curent cave using updated values.
-    public void Visualize()
+    public void GeneratePaths()
     {
-        float time = Time.realtimeSinceStartup;
-        if (m_PoissonSpheres == null)
-        {
-            Debug.LogWarning("Generating on CaveGenerator is necessary!");
-            return;
-        }
+        if (!CheckSpheresDistributionReady()) return;
 
-
-
-
-        m_SpherePool.NewRound();
-        List<Point> points = m_PoissonSpheres.Points;
-        for (int i = 0; i < points.Count; i++)
-        {
-            points[i].VisualSphereType = PoissonSpheres.SphereType.WHITE;
-        }
-
-        if (m_RenderNeighboursVisualization)
-        {
-            if (VisualizedSphere > points.Count) VisualizedSphere = points.Count - 1;
-            if (VisualizedSphere < 0) VisualizedSphere = 0;
-            var examinedPoint = points[VisualizedSphere];
-            examinedPoint.VisualSphereType = PoissonSpheres.SphereType.BLUE;
-            foreach (var nearestPoint in examinedPoint.NextList)
-            {
-                points[nearestPoint.PointIndex].VisualSphereType = PoissonSpheres.SphereType.RED;
-            }
-        }
-
-        ClearLines();
         LoadKeyPoints();
         LoadHorizons();
         LoadFractures();
         m_Paths.Clear();
 
-        Timer t = new Timer("FindShortestPath");
         Vector3[] keyPointsPositions = new Vector3[m_KeyPoints.Count];
         for (int i = 0; i < m_KeyPoints.Count; i++)
         {
             keyPointsPositions[i] = m_KeyPoints[i].transform.position;
         }
-
 
         Parallel.For(0, m_KeyPoints.Count - 1, (i) =>
         {
@@ -188,42 +143,22 @@ public class CaveGenerator : MonoBehaviour
                 FindShortestPath(m_PoissonSpheres.GetNearestPoint(keyPointsPositions[i], m_SearchDistance), m_PoissonSpheres.GetNearestPoint(keyPointsPositions[j], m_SearchDistance));
             }
         });
-        t.End();
 
         PronePaths();
         GenerateBranches();
-        if (m_RenderLines)
+
+        foreach (var sphere in m_PoissonSpheres.Points)
         {
-            foreach (var path in m_Paths)
-            {
-                path.Visualize(m_PoissonSpheres, Instantiate(m_LineRendererPrefab, m_LineRenderersParent));
-            }
+            sphere.VisualSphereType = SphereType.WHITE;
         }
-
-
-        Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
-        if (m_RenderPointsAndSpheres)
+        foreach (var path in m_Paths)
         {
-            if (m_RenderPointsTrueSpheresFalse)
-            {
-                for (int i = 0; i < points.Count; i++)
-                {
-                    if (points[i].VisualSphereType == SphereType.WHITE) continue;
-                    m_SpherePool.WakeSphere(points[i].Pos - toCenterOffset, m_PointSize, m_Materials[(int)points[i].VisualSphereType], i);
-                }
-            }
-            else
-            {
-                for (int i = 0; i < points.Count; i++)
-                {
-                    if (points[i].VisualSphereType == SphereType.WHITE) continue;
-                    m_SpherePool.WakeSphere(points[i].Pos - toCenterOffset, points[i].Radius * 2.0f, m_Materials[(int)points[i].VisualSphereType], i);
-                }
-            }
+            path.ColorPath();
         }
-        m_SpherePool.PutUnusedToSleep();
+    }
 
-        //Debug.Log("Visualization took: " + m_VisualizationTime + "ms");
+    public void GenerateMesh()
+    { 
         m_SweepingPrimitiveGenerator.LoadPixels();
         m_MeshGenerator.Generate(m_Size, m_MarchingCubesBoundry, m_SingleEditPower, m_SingleEditRadius);
         foreach (var path in m_Paths)
@@ -245,28 +180,19 @@ public class CaveGenerator : MonoBehaviour
         }
         m_MeshGenerator.CreateShape();
         m_MeshGenerator.UpdateMesh();
-
-        VisualizationTime = Time.realtimeSinceStartup - time;
     }
 
-    /*List<Vector3> m_Tangents = new List<Vector3>();
-    List<Vector3> m_TangentsPos = new List<Vector3>();*/
+
     private void RemoveAtPosition(Vector3 pos, Vector3 tangent)
     {
-        /*m_Tangents.Add(tangent);
-        m_TangentsPos.Add(pos);*/
         var primitivePoints = m_SweepingPrimitiveGenerator.GeneratePoints(tangent, pos.y / m_Size.y);
-        //Debug.Log(primitivePoints.Count);
         foreach (var point in primitivePoints)
         {       
             m_MeshGenerator.RemoveFromTerrain(pos + point);
         }
-        /*m_MeshGenerator.RemoveFromTerrain(pos);
-        m_MeshGenerator.RemoveFromTerrain(pos + new Vector3(0.0f, 1.0f, 0.0f));
-        m_MeshGenerator.RemoveFromTerrain(pos - new Vector3(0.0f, 1.0f, 0.0f));*/
     }
 
-    // Generates addition tunnels spreading from the paths.
+    // Generates additional tunnels spreading from the paths.
     private void GenerateBranches()
     {
         int pathsSizeBeforeAddition = m_Paths.Count;
@@ -288,37 +214,16 @@ public class CaveGenerator : MonoBehaviour
         }
     }
 
-    // Clears the drawn lines.
-    private void ClearLines()
-    {
-        for (int i = m_LineRenderersParent.childCount - 1; i >= 0; i--)
-        {
-            DestroyImmediate(m_LineRenderersParent.GetChild(i).gameObject);
-        }
-    }
-
     // Caches the keypoints. 
     private void LoadKeyPoints()
     {
         m_KeyPoints.Clear();
-        if (m_RenderPointsAndSpheres)
+
+        for (int i = 0; i < m_KeyPointsParent.childCount; i++)
         {
-            for (int i = 0; i < m_KeyPointsParent.childCount; i++)
-            {
-                Transform horizonTransform = m_KeyPointsParent.GetChild(i);
-                KeyPoint keyPoint = horizonTransform.GetComponent<KeyPoint>();
-                m_KeyPoints.Add(keyPoint);
-                keyPoint.gameObject.SetActive(true);
-            }
-        } else
-        {
-            for (int i = 0; i < m_KeyPointsParent.childCount; i++)
-            {
-                Transform horizonTransform = m_KeyPointsParent.GetChild(i);
-                KeyPoint keyPoint = horizonTransform.GetComponent<KeyPoint>();
-                m_KeyPoints.Add(keyPoint);
-                keyPoint.gameObject.SetActive(false);
-            }
+            Transform horizonTransform = m_KeyPointsParent.GetChild(i);
+            KeyPoint keyPoint = horizonTransform.GetComponent<KeyPoint>();
+            m_KeyPoints.Add(keyPoint);
         }
     }
 
@@ -364,7 +269,7 @@ public class CaveGenerator : MonoBehaviour
         var points = m_PoissonSpheres.Points;
         var grid = m_PoissonSpheres.Grid;
 
-        object furthestApartSpheresLock = new object();
+        //object furthestApartSpheresLock = new object();
         //Parallel.For(0, points.Count, (i) => { 
         for (int i = 0; i < points.Count; i++)    
         {
@@ -598,5 +503,102 @@ public class CaveGenerator : MonoBehaviour
             }
         }
         if (!m_Paths.Contains(dict[startPoint][endPoint])) m_Paths.Add(dict[startPoint][endPoint]);
+    }
+
+    public bool CheckSpheresDistributionReady()
+    {
+        if (m_PoissonSpheres != null) return true;
+  
+        Debug.LogWarning("Distribute spheres first!");
+        return false;
+    }
+
+    public bool CheckPathsGenerated()
+    {
+        if (m_Paths.Count != 0) return true;
+
+        Debug.LogWarning("Generate paths first!");
+        return false;
+    }
+
+    public void RenderPaths(bool visible)
+    {
+        if (visible)
+        {
+            foreach (var path in m_Paths)
+            {
+                path.AddLineRenderer(m_PoissonSpheres, Instantiate(m_LineRendererPrefab, m_LineRenderersParent));
+            }
+        }
+        else
+        {
+            for (int i = m_LineRenderersParent.childCount - 1; i >= 0; i--)
+            {
+                DestroyImmediate(m_LineRenderersParent.GetChild(i).gameObject);
+            }
+        }
+    }
+
+    public void RenderMesh(bool value)
+    {
+        GetComponent<MeshRenderer>().enabled = value;
+    }
+
+    public void RenderPoissonSpheres(int option, bool neighbourVisualization)
+    {
+        m_SpherePool.NewRound();
+        List<Point> points = m_PoissonSpheres.Points;
+        Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
+        switch (option)
+        {
+            case 0:
+                {
+                    break;
+                }
+            case 1:
+                {
+                    for (int i = 0; i < points.Count; i++)
+                    {
+                        if (points[i].VisualSphereType != SphereType.GREEN) continue;
+                        m_SpherePool.WakeSphere(points[i].Pos - toCenterOffset, 0.8f, m_Materials[(int)points[i].VisualSphereType], i);
+                    }
+                    break;
+                }
+            case 2:
+                {
+                    for (int i = 0; i < points.Count; i++)
+                    {
+                        if (points[i].VisualSphereType != SphereType.GREEN) continue;
+                        m_SpherePool.WakeSphere(points[i].Pos - toCenterOffset, points[i].Radius * 2.0f, m_Materials[(int)points[i].VisualSphereType], i);
+                    }
+                    break;
+                }
+            case 3:
+                {
+                    if (VisualizedSphere > points.Count) VisualizedSphere = 0;
+
+                    var examinedPoint = points[VisualizedSphere];
+                    if (neighbourVisualization)
+                    {
+                        examinedPoint.VisualSphereType = PoissonSpheres.SphereType.BLUE;
+                        foreach (var nearestPoint in examinedPoint.NextList)
+                        {
+                            points[nearestPoint.PointIndex].VisualSphereType = PoissonSpheres.SphereType.RED;
+                        }
+                    }
+                    
+                    for (int i = 0; i < points.Count; i++)
+                    {
+                        m_SpherePool.WakeSphere(points[i].Pos - toCenterOffset, points[i].Radius * 2.0f, m_Materials[(int)points[i].VisualSphereType], i);
+                    }
+                    break;
+                }
+        }
+        m_SpherePool.PutUnusedToSleep();
+    }
+
+    public void SetTransparency(float value)
+    {
+        Debug.Log("Transparency set to: " + value);
     }
 }

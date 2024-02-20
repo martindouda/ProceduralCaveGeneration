@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 
-[RequireComponent(typeof(MeshFilter)), RequireComponent(typeof(MeshCollider))]
+[RequireComponent(typeof(MeshFilter))]
 public class MeshGenerator : MonoBehaviour
 {
     private Mesh m_Mesh;
@@ -161,7 +161,7 @@ public class MeshGenerator : MonoBehaviour
         m_Mesh.SetVertices(m_Vertices);
         m_Mesh.SetNormals(m_Normals);
         m_Mesh.SetTriangles(m_Triangles, 0);
-        GetComponent<MeshCollider>().sharedMesh = m_Mesh;
+        //GetComponent<MeshCollider>().sharedMesh = m_Mesh;
     }
 
     private void MeshRayCastAdd()

@@ -207,6 +207,8 @@ Material:
     - _EnableFogOnTransparent: 1
     - _EnableGeometricSpecularAA: 0
     - _EnergyConservingSpecularColor: 1
+    - _ExcludeFromTUAndAA: 0
+    - _FresnelPower: 2
     - _HeightAmplitude: 0.02
     - _HeightCenter: 0.5
     - _HeightMapParametrization: 0
@@ -261,11 +263,13 @@ Material:
     - _SubsurfaceMask: 1
     - _SupportDecals: 1
     - _SurfaceType: 0
+    - _TesselationFactor: 32
+    - _TesselationPower: 2
     - _TessellationBackFaceCullEpsilon: -0.25
     - _TessellationFactorMaxDistance: 50
     - _TessellationFactorMinDistance: 20
     - _TessellationFactorTriangleSize: 100
-    - _TessellationMaxDisplacement: 0.01
+    - _TessellationMaxDisplacement: 0.1
     - _TessellationMode: 0
     - _TessellationShapeFactor: 0.75
     - _TexWorldScale: 1

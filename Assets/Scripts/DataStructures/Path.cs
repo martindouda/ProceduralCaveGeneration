@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UIElements;
 using static PoissonSpheres;
 
 // Class used to represent a path between two key points.
@@ -23,15 +24,22 @@ public class Path
     }
 
     // Vizualizes the path using a line renderer.
-    public void Visualize(PoissonSpheres poissonSpheres, LineRenderer lineRenderer)
+    public void AddLineRenderer(PoissonSpheres poissonSpheres, LineRenderer lineRenderer)
     {
         List<Vector3> positions = new List<Vector3>();
         foreach (var point in m_Points)
         {
             positions.Add(point.Pos - new Vector3(poissonSpheres.Size.x / 2, 0.0f, poissonSpheres.Size.y / 2));
-            point.VisualSphereType = SphereType.GREEN;
         }
         lineRenderer.positionCount = m_Points.Count;
         lineRenderer.SetPositions(positions.ToArray());
+    }
+
+    public void ColorPath()
+    {
+        foreach (var point in m_Points)
+        {
+            point.VisualSphereType = SphereType.GREEN;
+        }
     }
 }
