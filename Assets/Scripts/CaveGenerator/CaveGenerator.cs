@@ -41,6 +41,7 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField, Range(0.0f, 100.0f)] private float m_MaxDistFromPath = 10.0f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_ProbabilityOfBranchSpawn = 0.5f;
     [Space(20), Header("MESH GENERATION")]
+    [SerializeField, Range(0.1f, 5.0f)] private float m_MarchingCubesScale = 1.0f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_MarchingCubesBoundry = 0.5f;
     [SerializeField, Range(0.1f, 10.0f)] private float m_TerrainEditsPerUnit = 2.0f;
     [SerializeField, Range(0.1f, 5.0f)] private float m_SingleEditRadius = 2.0f;
@@ -109,9 +110,9 @@ public class CaveGenerator : MonoBehaviour
 
     public void GeneratePoissonSpheres()
     {
-        InitializeVariables();
         float time = Time.realtimeSinceStartup;
 
+        InitializeVariables();
         m_PoissonSpheres = new PoissonSpheres(m_Size, m_MinSphereRadius, m_MaxSphereRadius, m_SpacingLimit);
         m_PoissonSpheres.GeneratePoints(m_NumSamplesBeforeRejection);
         ConnectNearest(m_SearchDistance, m_IdealNumOfNearest);
@@ -160,24 +161,8 @@ public class CaveGenerator : MonoBehaviour
     public void GenerateMesh()
     { 
         m_SweepingPrimitiveGenerator.LoadPixels();
-        m_MeshGenerator.Generate(m_Size, m_MarchingCubesBoundry, m_SingleEditPower, m_SingleEditRadius);
-        foreach (var path in m_Paths)
-        {
-            float pathLength = 0.0f;
-            for (int i = 0; i < path.Points.Count - 1; i++)
-            {
-                pathLength += (path.Points[i].Pos - path.Points[i + 1].Pos).magnitude;
-            }
-            int stepsCount = Mathf.CeilToInt(pathLength * m_TerrainEditsPerUnit);
-            float stepSize = pathLength / stepsCount;
-            for (int i = 0; i < stepsCount; i++)
-            {
-                float continousIndex = (i * stepSize) / pathLength * (path.Points.Count-1);
-                Vector3 tangent = (path.Points[(int)continousIndex].Pos - path.Points[(int)continousIndex + 1].Pos).normalized;
-                Vector3 posToEdit = Vector3.Lerp(path.Points[(int)continousIndex].Pos, path.Points[(int)continousIndex + 1].Pos, continousIndex - (int)continousIndex);
-                RemoveAtPosition(posToEdit - new Vector3(m_Size.x / 2.0f, 0.0f, m_Size.z / 2.0f), tangent);
-            }
-        }
+        m_MeshGenerator.Generate(m_Size, m_MarchingCubesScale, m_MarchingCubesBoundry, m_SingleEditPower, m_SingleEditRadius);
+        m_MeshGenerator.SweepPrimitives(m_Paths, m_TerrainEditsPerUnit, m_SweepingPrimitiveGenerator);
         m_MeshGenerator.CreateShape();
         m_MeshGenerator.UpdateMesh();
     }
@@ -547,6 +532,16 @@ public class CaveGenerator : MonoBehaviour
     public void RenderPoissonSpheres(int option, bool neighbourVisualization)
     {
         m_SpherePool.NewRound();
+
+        foreach (var sphere in m_PoissonSpheres.Points)
+        {
+            sphere.VisualSphereType = SphereType.WHITE;
+        }
+        foreach (var path in m_Paths)
+        {
+            path.ColorPath();
+        }
+
         List<Point> points = m_PoissonSpheres.Points;
         Vector3 toCenterOffset = new Vector3(m_Size.x / 2, 0.0f, m_Size.z / 2);
         switch (option)

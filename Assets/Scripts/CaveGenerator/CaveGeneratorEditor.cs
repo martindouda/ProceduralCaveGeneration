@@ -5,24 +5,19 @@ using UnityEditor;
 [CustomEditor(typeof(CaveGenerator))]
 public class CaveGeneratorEditor : Editor
 {
-    private bool m_ShowNeighbourToggle = false;
-    private bool m_RenderPathsToggle = false;
-    private bool m_RenderMeshToggle = false;
+    private static bool m_ShowNeighbourToggle = false;
+    private static bool m_RenderPathsToggle = false;
+    private static bool m_RenderMeshToggle = false;
 
-    private int m_SelectedVisualizationOption = 0;
-    private string[] m_VisualizationOptions = { "Disabled", "Points On Path", "Spheres On Path", "All Spheres" };
-    private float m_TransparencySlider = 1.0f;
+    private static int m_SelectedVisualizationOption = 0;
+    private static string[] m_VisualizationOptions = { "Disabled", "Points On Path", "Spheres On Path", "All Spheres" };
+    private static float m_TransparencySlider = 1.0f;
 
-    private float m_GenerateSpheresDuration;
-    private float m_GeneratePathsDuration;
-    private float m_GenerateMeshDuration;
+    private static float m_GenerateSpheresDuration;
+    private static float m_GeneratePathsDuration;
+    private static float m_GenerateMeshDuration;
 
-    private bool m_FirstRound;
-
-    private void Awake()
-    {
-        m_FirstRound = true;
-    }
+    private static bool m_FirstRound = true;
 
     public override void OnInspectorGUI()
     {
@@ -32,11 +27,19 @@ public class CaveGeneratorEditor : Editor
 
         if (m_FirstRound)
         {
+            Debug.Log("First Round");
             m_SelectedVisualizationOption = 0;
             m_ShowNeighbourToggle = false;
-            caveGenerator.RenderPoissonSpheres(m_SelectedVisualizationOption, m_ShowNeighbourToggle);
             m_RenderPathsToggle = false;
-            caveGenerator.RenderPaths(m_RenderPathsToggle);
+            
+            if (caveGenerator.CheckSpheresDistributionReady())
+            {
+                caveGenerator.RenderPoissonSpheres(m_SelectedVisualizationOption, m_ShowNeighbourToggle);
+                if (caveGenerator.CheckPathsGenerated())
+                {
+                    caveGenerator.RenderPaths(m_RenderPathsToggle);
+                }
+            }
 
             m_FirstRound = false;
         }

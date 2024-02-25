@@ -1,5 +1,8 @@
+using System;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
+using static UnityEditor.PlayerSettings;
 
 
 [RequireComponent(typeof(MeshFilter))]
@@ -11,9 +14,11 @@ public class MeshGenerator : MonoBehaviour
     private List<Vector3> m_Normals;
     private List<int> m_Triangles;
 
-    private Vector3Int m_Size;
+    private Vector3 m_Size;
+    private Vector3Int m_ArraySize;
 
     private float m_Boundry = 0.5f;
+    private float m_Scale = 1.0f;
     private float m_EditPower = 1.0f;
     private float m_EditSize = 3.0f;
 
@@ -22,9 +27,12 @@ public class MeshGenerator : MonoBehaviour
 
     private float[] m_Grid;
 
-    public void Generate(Vector3Int size, float boundry, float editPower, float editSize)
+    public void Generate(Vector3 sizeFloat, float scale, float boundry, float editPower, float editSize)
     {
-        m_Size = size + Vector3Int.one * Mathf.CeilToInt(m_EditSize) * 2;
+        Vector3Int size = new Vector3Int((int)(sizeFloat.x / scale), (int)(sizeFloat.y / scale), (int)(sizeFloat.z / scale));
+        m_Size = size;
+        m_ArraySize = size + Vector3Int.one * Mathf.CeilToInt(m_EditSize) * 2;
+        m_Scale = scale;
         m_Boundry = boundry;
         m_EditPower = editPower;
         m_EditSize = editSize;
@@ -36,28 +44,43 @@ public class MeshGenerator : MonoBehaviour
         UpdateMesh();
     }
 
-    private void FixedUpdate()
-    {
-        /*if (Input.GetMouseButton(0))
-        {
-            MeshRayCastAdd();
-        }
-        if (Input.GetMouseButton(1))
-        {
-            MeshRayCastRemove();
-        }*/
-    }
-
     private void CreateGrid()
     {
-        m_Grid = new float[(m_Size.x + 1) * (m_Size.z + 1) * (m_Size.y + 1)];
-        for (int y = 0; y < m_Size.y; y++)
+        m_Grid = new float[(m_ArraySize.x + 1) * (m_ArraySize.z + 1) * (m_ArraySize.y + 1)];
+        for (int y = 0; y < m_ArraySize.y; y++)
         {
-            for (int z = 0; z <= m_Size.z; z++)
+            for (int z = 0; z <= m_ArraySize.z; z++)
             {
-                for (int x = 0; x <= m_Size.x; x++)
+                for (int x = 0; x <= m_ArraySize.x; x++)
                 {
-                    m_Grid[x + z * (m_Size.x + 1) + y * (m_Size.x + 1) * (m_Size.z + 1)] = 1.0f;
+                    m_Grid[x + z * (m_ArraySize.x + 1) + y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)] = 1.0f;
+                }
+            }
+        }
+    }
+
+    public void SweepPrimitives(List<Path> paths, float terrainEditsPerUnit, SweepingPrimitiveGenerator sweepingPrimitiveGenerator)
+    {
+        foreach (var path in paths)
+        {
+            float pathLength = 0.0f;
+            for (int i = 0; i < path.Points.Count - 1; i++)
+            {
+                pathLength += (path.Points[i].Pos - path.Points[i + 1].Pos).magnitude;
+            }
+            int stepsCount = Mathf.CeilToInt(pathLength * terrainEditsPerUnit);
+            float stepSize = pathLength / stepsCount;
+            for (int i = 0; i < stepsCount; i++)
+            {
+                float continousIndex = (i * stepSize) / pathLength * (path.Points.Count - 1);
+                Vector3 tangent = (path.Points[(int)continousIndex].Pos - path.Points[(int)continousIndex + 1].Pos).normalized;
+                Vector3 posToEdit = Vector3.Lerp(path.Points[(int)continousIndex].Pos, path.Points[(int)continousIndex + 1].Pos, continousIndex - (int)continousIndex) / m_Scale;
+
+                Vector3 pos = posToEdit - new Vector3(m_Size.x / 2.0f, 0.0f, m_Size.z / 2.0f);
+                var primitivePoints = sweepingPrimitiveGenerator.GeneratePoints(tangent, pos.y / m_Size.y);
+                foreach (var point in primitivePoints)
+                {
+                    RemoveFromTerrain(pos + point);
                 }
             }
         }
@@ -70,24 +93,24 @@ public class MeshGenerator : MonoBehaviour
         m_Triangles = new List<int>();
         m_VertexDict = new Dictionary<Vector3, int>();
 
-        for (int y = 0; y < m_Size.y; y++)
+        for (int y = 0; y < m_ArraySize.y; y++)
         {
-            for (int z = 0; z < m_Size.z; z++)
+            for (int z = 0; z < m_ArraySize.z; z++)
             {
-                for (int x = 0; x < m_Size.x; x++)
+                for (int x = 0; x < m_ArraySize.x; x++)
                 {
                     int cubeIndex = 0;
 
                     float[] cubeValues = new float[]
                     {
-                        GetFromGrid(x, y, z + 1),
-                        GetFromGrid(x + 1, y, z + 1),
-                        GetFromGrid(x + 1, y, z),
-                        GetFromGrid(x, y, z),
-                        GetFromGrid(x, y + 1, z + 1),
-                        GetFromGrid(x + 1, y + 1, z + 1),
-                        GetFromGrid(x + 1, y + 1, z),
-                        GetFromGrid(x, y + 1, z),
+                        GetFromGrid(x,      y,      z + 1),
+                        GetFromGrid(x + 1,  y,      z + 1),
+                        GetFromGrid(x + 1,  y,      z),
+                        GetFromGrid(x,      y,      z),
+                        GetFromGrid(x,      y + 1,  z + 1),
+                        GetFromGrid(x + 1,  y + 1,  z + 1),
+                        GetFromGrid(x + 1,  y + 1,  z),
+                        GetFromGrid(x,      y + 1,  z),
                     };
 
 
@@ -109,7 +132,7 @@ public class MeshGenerator : MonoBehaviour
                         int c0 = MarchingCubesTables.edgeConnections[edges[i + 2]][0];
                         int c1 = MarchingCubesTables.edgeConnections[edges[i + 2]][1];
 
-                        Vector3 pos = new Vector3(x - m_Size.x / 2f, y - Mathf.CeilToInt(m_EditSize), z - m_Size.z / 2f);
+                        Vector3 pos = new Vector3(x - m_ArraySize.x / 2f, y - Mathf.CeilToInt(m_EditSize), z - m_ArraySize.z / 2f) * m_Scale;
 
 
                         Vector3 vertexPos1 = GetMarchingCubesVertex(pos, MarchingCubesTables.cubeCorners[a0], cubeValues[a0], MarchingCubesTables.cubeCorners[a1], cubeValues[a1]);
@@ -133,11 +156,11 @@ public class MeshGenerator : MonoBehaviour
 
     private float GetFromGrid(int x, int y, int z)
     {
-        return m_Grid[x + z * (m_Size.x + 1) + y * (m_Size.x + 1) * (m_Size.z + 1)];
+        return m_Grid[x + z * (m_ArraySize.x + 1) + y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)];
     }
 
     private Vector3 GetMarchingCubesVertex(Vector3 pos, Vector3 vert0, float val0, Vector3 vert1, float val1) {
-        Vector3 ret = pos + (vert0 + (m_Boundry - val0) * (vert1 - vert0) / (val1 - val0));
+        Vector3 ret = pos + (vert0 + (m_Boundry - val0) * (vert1 - vert0) / (val1 - val0)) * m_Scale;
         return new Vector3(((int)(ret.x * 100.0f + 0.5f)) / 100.0f, ((int)(ret.y * 100.0f + 0.5f)) / 100.0f, ((int)(ret.z * 100.0f + 0.5f)) / 100.0f);
     }
 
@@ -161,55 +184,7 @@ public class MeshGenerator : MonoBehaviour
         m_Mesh.SetVertices(m_Vertices);
         m_Mesh.SetNormals(m_Normals);
         m_Mesh.SetTriangles(m_Triangles, 0);
-        //GetComponent<MeshCollider>().sharedMesh = m_Mesh;
     }
-
-    private void MeshRayCastAdd()
-    {
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        RaycastHit hit;
-        if (Physics.Raycast(ray, out hit))
-        {
-            AddToTerain(hit.point);
-            CreateShape();
-            UpdateMesh();
-        }
-    }
-
-    private void MeshRayCastRemove()
-    {
-        Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-        RaycastHit hit;
-        if (Physics.Raycast(ray, out hit))
-        {
-            RemoveFromTerrain(hit.point);
-            CreateShape();
-            UpdateMesh();
-        }
-    }
-
-    public void AddToTerain(Vector3 worldPos)
-    {
-        for (float y = -m_EditSize; y <= m_EditSize; y++)
-        {
-            for (float z = -m_EditSize; z <= m_EditSize; z++)
-            {
-                for (float x = -m_EditSize; x <= m_EditSize; x++)
-                {
-                    Vector3 pos = new Vector3(worldPos.x + x, worldPos.y + y, worldPos.z + z);
-                    float distance = (worldPos - pos).magnitude / m_EditSize;
-                    if (distance > 1.0f) continue;
-                    
-                    Vector3Int gridPos = new Vector3Int((int)(pos.x + m_Size.x / 2f + .5f), (int)(pos.y + Mathf.CeilToInt(m_EditSize) + .5f), (int)(pos.z + m_Size.z / 2f + .5f));
-
-                    if (gridPos.y < 0 || m_Size.x < gridPos.y || gridPos.z < 0 || m_Size.z < gridPos.z || gridPos.x < 0 || m_Size.x < gridPos.x) continue;
-
-                    m_Grid[gridPos.x + gridPos.z * (m_Size.x + 1) + gridPos.y * (m_Size.x + 1) * (m_Size.z + 1)] += (1 - distance) * (1 - distance) * m_EditPower;
-                    Mathf.Clamp(m_Grid[gridPos.x + gridPos.z * (m_Size.x + 1) + gridPos.y * (m_Size.x + 1) * (m_Size.z + 1)], 0.0f, 1.0f);
-                }
-            }
-        }
-    } 
     
     public void RemoveFromTerrain(Vector3 worldPos)
     {
@@ -223,12 +198,12 @@ public class MeshGenerator : MonoBehaviour
                     float distance = (worldPos - pos).magnitude / m_EditSize;
                     if (distance > 1.0f) continue;
                     
-                    Vector3Int gridPos = new Vector3Int((int)(pos.x + m_Size.x / 2f + .5f), (int)(pos.y + Mathf.CeilToInt(m_EditSize) + .5f), (int)(pos.z + m_Size.z / 2f + .5f));
+                    Vector3Int gridPos = new Vector3Int((int)(pos.x + m_ArraySize.x / 2f + .5f), (int)(pos.y + Mathf.CeilToInt(m_EditSize) + .5f), (int)(pos.z + m_ArraySize.z / 2f + .5f));
 
-                    if (gridPos.y < 0 || m_Size.x < gridPos.y || gridPos.z < 0 || m_Size.z < gridPos.z || gridPos.x < 0 || m_Size.x < gridPos.x) continue;
+                    if (gridPos.y < 0 || m_ArraySize.x < gridPos.y || gridPos.z < 0 || m_ArraySize.z < gridPos.z || gridPos.x < 0 || m_ArraySize.x < gridPos.x) continue;
 
-                    m_Grid[gridPos.x + gridPos.z * (m_Size.x + 1) + gridPos.y * (m_Size.x + 1) * (m_Size.z + 1)] -= (1 - distance) * (1 - distance) * m_EditPower;
-                    Mathf.Clamp(m_Grid[gridPos.x + gridPos.z * (m_Size.x + 1) + gridPos.y * (m_Size.x + 1) * (m_Size.z + 1)], 0.0f, 1.0f);
+                    m_Grid[gridPos.x + gridPos.z * (m_ArraySize.x + 1) + gridPos.y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)] -= (1 - distance) * (1 - distance) * m_EditPower;
+                    Mathf.Clamp(m_Grid[gridPos.x + gridPos.z * (m_ArraySize.x + 1) + gridPos.y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)], 0.0f, 1.0f);
                 }
             }
         }
