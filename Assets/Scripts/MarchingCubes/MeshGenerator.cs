@@ -20,22 +20,24 @@ public class MeshGenerator : MonoBehaviour
     private float m_Boundry = 0.5f;
     private float m_Scale = 1.0f;
     private float m_EditPower = 1.0f;
-    private float m_EditSize = 3.0f;
+    private float m_PrimitiveRadius;
+    private float m_DiscRadius;
 
 
     Dictionary<Vector3, int> m_VertexDict;
 
     private float[] m_Grid;
 
-    public void Generate(Vector3 sizeFloat, float scale, float boundry, float editPower, float editSize)
+    public void Generate(Vector3 sizeFloat, float scale, float boundry, float editPower, float primitiveRadius, float discRaius)
     {
         Vector3Int size = new Vector3Int((int)(sizeFloat.x / scale), (int)(sizeFloat.y / scale), (int)(sizeFloat.z / scale));
         m_Size = size;
-        m_ArraySize = size + Vector3Int.one * Mathf.CeilToInt(m_EditSize) * 2;
+        m_ArraySize = size + Vector3Int.one * Mathf.CeilToInt(primitiveRadius / scale) * 2;
         m_Scale = scale;
         m_Boundry = boundry;
         m_EditPower = editPower;
-        m_EditSize = editSize;
+        m_PrimitiveRadius = primitiveRadius / scale;
+        m_DiscRadius = discRaius / scale;
         m_Mesh = new Mesh();
         GetComponent<MeshFilter>().mesh = m_Mesh;
 
@@ -77,7 +79,7 @@ public class MeshGenerator : MonoBehaviour
                 Vector3 posToEdit = Vector3.Lerp(path.Points[(int)continousIndex].Pos, path.Points[(int)continousIndex + 1].Pos, continousIndex - (int)continousIndex) / m_Scale;
 
                 Vector3 pos = posToEdit - new Vector3(m_Size.x / 2.0f, 0.0f, m_Size.z / 2.0f);
-                var primitivePoints = sweepingPrimitiveGenerator.GeneratePoints(tangent, pos.y / m_Size.y);
+                var primitivePoints = sweepingPrimitiveGenerator.GeneratePoints(tangent, pos.y / m_Size.y, m_PrimitiveRadius, m_DiscRadius);
                 foreach (var point in primitivePoints)
                 {
                     RemoveFromTerrain(pos + point);
@@ -132,7 +134,7 @@ public class MeshGenerator : MonoBehaviour
                         int c0 = MarchingCubesTables.edgeConnections[edges[i + 2]][0];
                         int c1 = MarchingCubesTables.edgeConnections[edges[i + 2]][1];
 
-                        Vector3 pos = new Vector3(x - m_ArraySize.x / 2f, y - Mathf.CeilToInt(m_EditSize), z - m_ArraySize.z / 2f) * m_Scale;
+                        Vector3 pos = new Vector3(x - m_ArraySize.x / 2f, y - Mathf.CeilToInt(m_PrimitiveRadius), z - m_ArraySize.z / 2f) * m_Scale;
 
 
                         Vector3 vertexPos1 = GetMarchingCubesVertex(pos, MarchingCubesTables.cubeCorners[a0], cubeValues[a0], MarchingCubesTables.cubeCorners[a1], cubeValues[a1]);
@@ -140,7 +142,7 @@ public class MeshGenerator : MonoBehaviour
                         Vector3 vertexPos3 = GetMarchingCubesVertex(pos, MarchingCubesTables.cubeCorners[b0], cubeValues[b0], MarchingCubesTables.cubeCorners[b1], cubeValues[b1]);
 
                         Vector3 normal = Vector3.Cross(vertexPos2 - vertexPos1, vertexPos3 - vertexPos1).normalized;
-
+                        
                         AddVertex(vertexPos1, normal);
                         AddVertex(vertexPos2, normal);
                         AddVertex(vertexPos3, normal);
@@ -188,17 +190,17 @@ public class MeshGenerator : MonoBehaviour
     
     public void RemoveFromTerrain(Vector3 worldPos)
     {
-        for (float y = -m_EditSize; y <= m_EditSize; y++)
+        for (float y = -m_PrimitiveRadius; y <= m_PrimitiveRadius; y++)
         {
-            for (float z = -m_EditSize; z <= m_EditSize; z++)
+            for (float z = -m_PrimitiveRadius; z <= m_PrimitiveRadius; z++)
             {
-                for (float x = -m_EditSize; x <= m_EditSize; x++)
+                for (float x = -m_PrimitiveRadius; x <= m_PrimitiveRadius; x++)
                 {
                     Vector3 pos = new Vector3(worldPos.x + x, worldPos.y + y, worldPos.z + z);
-                    float distance = (worldPos - pos).magnitude / m_EditSize;
+                    float distance = (worldPos - pos).magnitude / m_PrimitiveRadius;
                     if (distance > 1.0f) continue;
                     
-                    Vector3Int gridPos = new Vector3Int((int)(pos.x + m_ArraySize.x / 2f + .5f), (int)(pos.y + Mathf.CeilToInt(m_EditSize) + .5f), (int)(pos.z + m_ArraySize.z / 2f + .5f));
+                    Vector3Int gridPos = new Vector3Int((int)(pos.x + m_ArraySize.x / 2f + .5f), (int)(pos.y + Mathf.CeilToInt(m_PrimitiveRadius) + .5f), (int)(pos.z + m_ArraySize.z / 2f + .5f));
 
                     if (gridPos.y < 0 || m_ArraySize.x < gridPos.y || gridPos.z < 0 || m_ArraySize.z < gridPos.z || gridPos.x < 0 || m_ArraySize.x < gridPos.x) continue;
 

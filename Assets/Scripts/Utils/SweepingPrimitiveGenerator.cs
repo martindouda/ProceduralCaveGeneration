@@ -15,9 +15,7 @@ public class SweepingPrimitiveGenerator : MonoBehaviour
     [SerializeField] private Texture2D m_ImageCanyon; private Color[] m_PixelsCanyon;
     [SerializeField] private Texture2D m_ImagePassage; private Color[] m_PixelsPassage;
 
-    [SerializeField] private float m_Radius = 0.5f;
-    [SerializeField] private int m_SamplesBeforeRejection = 30;
-    [SerializeField] private Vector2 m_RegionSize = new Vector2(10.0f, 10.0f);
+    [SerializeField] private int m_SamplesBeforeRejection = 20;
 
     [SerializeField, Range(0.0f, 1.0f)] private float m_VerticalityCoefficient = 0.707f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_DistanceFromWaterTableKeyhole = 0.3f;
@@ -39,8 +37,9 @@ public class SweepingPrimitiveGenerator : MonoBehaviour
         m_PixelsPassage = m_ImagePassage.GetPixels();
     }
 
-    public List<Vector3> GeneratePoints(Vector3 tangent, float yNormalized)
+    public List<Vector3> GeneratePoints(Vector3 tangent, float yNormalized, float primitiveRadius, float discRadius)
     {
+        Vector2 regionSize = new Vector2(primitiveRadius, primitiveRadius) * 2.0f;
         float verticality = Mathf.Abs(tangent.y);
         if (verticality > m_VerticalityCoefficient)
         {
@@ -55,8 +54,8 @@ public class SweepingPrimitiveGenerator : MonoBehaviour
         }
                                                      
 
-        m_CellSize = m_Radius / Mathf.Sqrt(2.0f);
-        m_GridSize = new Vector2Int((int)(m_RegionSize.x / m_CellSize), (int)(m_RegionSize.y / m_CellSize));
+        m_CellSize = discRadius / Mathf.Sqrt(2.0f);
+        m_GridSize = new Vector2Int((int)(regionSize.x / m_CellSize), (int)(regionSize.y / m_CellSize));
 
         int[,] grid = new int[m_GridSize.y, m_GridSize.x];
         for (int y = 0; y < m_GridSize.y; y++)
@@ -81,9 +80,9 @@ public class SweepingPrimitiveGenerator : MonoBehaviour
             {
                 float angle = Random.value * 2 * Mathf.PI;
                 Vector3 dir = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0.0f);
-                Vector3 candidate = spawnCenter + dir * Random.Range(m_Radius, 2.0f * m_Radius);
+                Vector3 candidate = spawnCenter + dir * Random.Range(discRadius, 2.0f * discRadius);
 
-                if (PositionIsValid(candidate, grid, points) && FitsInImage(candidate))
+                if (PositionIsValid(candidate, grid, points, discRadius) && FitsInImage(candidate))
                 {
                     grid[(int)(candidate.y / m_CellSize), (int)(candidate.x / m_CellSize)] = points.Count;
                     points.Add(candidate);
@@ -109,7 +108,7 @@ public class SweepingPrimitiveGenerator : MonoBehaviour
         //Debug.Log(flatTangentAngle + ", " + upTangentAngle + ", cross:" + normal + " = " + tangent + " x " + flatTangent);
         for (int i = 0; i < points.Count; i++)
         {
-            points[i] = new Vector3(points[i].x - m_RegionSize.x / 2.0f , points[i].y - m_RegionSize.y / 2.0f, 0.0f);
+            points[i] = new Vector3(points[i].x - regionSize.x / 2.0f , points[i].y - regionSize.y / 2.0f, 0.0f);
             points[i] = new Vector3(points[i].x * flatTangentCos, points[i].y, points[i].x * flatTangentSin);
             points[i] = Quaternion.AngleAxis(upTangentAngle, normal) * points[i];
         }
@@ -123,7 +122,7 @@ public class SweepingPrimitiveGenerator : MonoBehaviour
         return points;
     }
 
-    private bool PositionIsValid(Vector3 candidate, int[,] grid, List<Vector3> points)
+    private bool PositionIsValid(Vector3 candidate, int[,] grid, List<Vector3> points, float discRadius)
     {
         if (candidate.x < 0.0f || m_CellSize * m_GridSize.x <= candidate.x || candidate.y < 0.0f || m_CellSize * m_GridSize.y <= candidate.y) return false;
         
@@ -142,7 +141,7 @@ public class SweepingPrimitiveGenerator : MonoBehaviour
                 if (index != -1)
                 {
                     float sqrDist = (candidate - points[index]).sqrMagnitude;
-                    if (sqrDist < m_Radius * m_Radius) return false;
+                    if (sqrDist < discRadius * discRadius) return false;
                 }
             }
         }

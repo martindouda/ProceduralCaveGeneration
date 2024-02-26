@@ -40,14 +40,14 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField, Range(0.0f, 1.0f)] private float m_BranchesPerPathNodeCoefficient = 0.5f;
     [SerializeField, Range(0.0f, 100.0f)] private float m_MaxDistFromPath = 10.0f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_ProbabilityOfBranchSpawn = 0.5f;
-    [Space(20), Header("MESH GENERATION")]
+    [Space(20), Header("MARCHING CUBES")]
     [SerializeField, Range(0.1f, 5.0f)] private float m_MarchingCubesScale = 1.0f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_MarchingCubesBoundry = 0.5f;
-    [SerializeField, Range(0.1f, 10.0f)] private float m_TerrainEditsPerUnit = 2.0f;
-    [SerializeField, Range(0.1f, 5.0f)] private float m_SingleEditRadius = 2.0f;
-    [SerializeField, Range(0.01f, 1.0f)] private float m_SingleEditPower = 1.0f;
     [Space(20), Header("SWEEPING PRIMITIVES")]
-
+    [SerializeField, Range(0.1f, 10.0f)] private float m_TerrainEditsPerUnit = 2.0f;
+    [SerializeField, Range(0.1f, 5.0f)] private float m_PrimitiveRadius = 2.5f;
+    [SerializeField, Range(0.1f, 2.0f)] private float m_DiscRadius = 1.0f;
+    [SerializeField, Range(0.01f, 1.0f)] private float m_DiscPower = 1.0f;
 
     // Poisson spheres
     private PoissonSpheres m_PoissonSpheres;
@@ -161,20 +161,10 @@ public class CaveGenerator : MonoBehaviour
     public void GenerateMesh()
     { 
         m_SweepingPrimitiveGenerator.LoadPixels();
-        m_MeshGenerator.Generate(m_Size, m_MarchingCubesScale, m_MarchingCubesBoundry, m_SingleEditPower, m_SingleEditRadius);
+        m_MeshGenerator.Generate(m_Size, m_MarchingCubesScale, m_MarchingCubesBoundry, m_DiscPower, m_PrimitiveRadius, m_DiscRadius);
         m_MeshGenerator.SweepPrimitives(m_Paths, m_TerrainEditsPerUnit, m_SweepingPrimitiveGenerator);
         m_MeshGenerator.CreateShape();
         m_MeshGenerator.UpdateMesh();
-    }
-
-
-    private void RemoveAtPosition(Vector3 pos, Vector3 tangent)
-    {
-        var primitivePoints = m_SweepingPrimitiveGenerator.GeneratePoints(tangent, pos.y / m_Size.y);
-        foreach (var point in primitivePoints)
-        {       
-            m_MeshGenerator.RemoveFromTerrain(pos + point);
-        }
     }
 
     // Generates additional tunnels spreading from the paths.
