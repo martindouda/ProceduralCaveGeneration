@@ -1,8 +1,6 @@
-using System;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
-using static UnityEditor.PlayerSettings;
+using static UnityEngine.Rendering.HighDefinition.ScalableSettingLevelParameter;
 
 
 [RequireComponent(typeof(MeshFilter))]
@@ -12,7 +10,10 @@ public class MeshGenerator : MonoBehaviour
 
     private List<Vector3> m_Vertices;
     private List<Vector3> m_Normals;
-    private List<int> m_Triangles;
+    private List<int> m_Indices;
+
+    private List<Vector3> m_StalactiteLocations;
+    private List<Vector3> m_StalagmiteLocations;
 
     private Vector3 m_Size;
     private Vector3Int m_ArraySize;
@@ -23,10 +24,15 @@ public class MeshGenerator : MonoBehaviour
     private float m_PrimitiveRadius;
     private float m_DiscRadius;
 
-
     Dictionary<Vector3, int> m_VertexDict;
 
     private float[] m_Grid;
+
+    // Stalactites
+    [SerializeField] private Transform m_StalactitesParent;
+    [SerializeField] private Transform m_StalagmitesParent;
+    [SerializeField] private Transform m_StalactitePrefab;
+    [SerializeField, Range(1.0f, 45.0f)] private float m_AngleLimit = 3.0f;
 
     public void Generate(Vector3 sizeFloat, float scale, float boundry, float editPower, float primitiveRadius, float discRaius)
     {
@@ -39,11 +45,27 @@ public class MeshGenerator : MonoBehaviour
         m_PrimitiveRadius = primitiveRadius / scale;
         m_DiscRadius = discRaius / scale;
         m_Mesh = new Mesh();
+        m_Mesh.name = "CaveMesh";
         GetComponent<MeshFilter>().mesh = m_Mesh;
 
         CreateGrid();
         CreateShape();
         UpdateMesh();
+
+        MeshCollider meshCollider = GetComponent<MeshCollider>();
+        meshCollider.sharedMesh = m_Mesh;
+        meshCollider.enabled = false;
+        meshCollider.enabled = true;
+    }
+
+    private void OnDrawGizmos()
+    {
+        if (m_StalagmiteLocations == null) return;
+
+        foreach (var stalagmite in m_StalagmiteLocations)
+        {
+            Gizmos.DrawSphere(stalagmite, 0.1f);
+        }
     }
 
     private void CreateGrid()
@@ -90,10 +112,15 @@ public class MeshGenerator : MonoBehaviour
 
     public void CreateShape()
     {
+        ClearStalactites();
+        ClearStalagmites();
+            
         m_Vertices = new List<Vector3>();
         m_Normals = new List<Vector3>();
-        m_Triangles = new List<int>();
+        m_Indices = new List<int>();
         m_VertexDict = new Dictionary<Vector3, int>();
+        m_StalactiteLocations = new List<Vector3>();
+        m_StalagmiteLocations = new List<Vector3>();
 
         for (int y = 0; y < m_ArraySize.y; y++)
         {
@@ -142,7 +169,19 @@ public class MeshGenerator : MonoBehaviour
                         Vector3 vertexPos3 = GetMarchingCubesVertex(pos, MarchingCubesTables.cubeCorners[b0], cubeValues[b0], MarchingCubesTables.cubeCorners[b1], cubeValues[b1]);
 
                         Vector3 normal = Vector3.Cross(vertexPos2 - vertexPos1, vertexPos3 - vertexPos1).normalized;
-                        
+
+                        if (Vector3.Dot(normal, Vector3.down) > Mathf.Cos(Mathf.Deg2Rad * m_AngleLimit))    
+                        {
+                            float u = Random.value;
+                            float v = Random.value;
+                            if (u + v > 1.0f)
+                            {
+                                u = 1.0f - u;
+                                v = 1.0f - v;
+                            }
+                            float w = 1.0f - u - v;
+                            m_StalactiteLocations.Add(vertexPos1 * u + vertexPos2 * v + vertexPos3 * w);
+                        }
                         AddVertex(vertexPos1, normal);
                         AddVertex(vertexPos2, normal);
                         AddVertex(vertexPos3, normal);
@@ -170,12 +209,12 @@ public class MeshGenerator : MonoBehaviour
     {
         if (m_VertexDict.ContainsKey(pos))
         {
-            m_Triangles.Add(m_VertexDict[pos]);
+            m_Indices.Add(m_VertexDict[pos]);
             m_Normals[m_VertexDict[pos]] += normal;
             return;
         }
         m_VertexDict[pos] = m_Vertices.Count;
-        m_Triangles.Add(m_Vertices.Count);
+        m_Indices.Add(m_Vertices.Count);
         m_Vertices.Add(pos);
         m_Normals.Add(normal);
     }
@@ -185,7 +224,7 @@ public class MeshGenerator : MonoBehaviour
         m_Mesh.Clear();
         m_Mesh.SetVertices(m_Vertices);
         m_Mesh.SetNormals(m_Normals);
-        m_Mesh.SetTriangles(m_Triangles, 0);
+        m_Mesh.SetTriangles(m_Indices, 0);
     }
     
     public void RemoveFromTerrain(Vector3 worldPos)
@@ -209,5 +248,183 @@ public class MeshGenerator : MonoBehaviour
                 }
             }
         }
+    }
+
+    public void ClearStalactites()
+    {
+        while (m_StalactitesParent.childCount > 0)
+        {
+            DestroyImmediate(m_StalactitesParent.GetChild(0).gameObject);
+        }
+    }
+
+    public void ClearStalagmites()
+    {
+        while (m_StalagmitesParent.childCount > 0)
+        {
+            DestroyImmediate(m_StalagmitesParent.GetChild(0).gameObject);
+        }
+    }
+
+    [SerializeField] private int m_NumPointsHorizontal = 10;
+    [SerializeField] private int m_NumPointsVertical = 20;
+    [SerializeField] private float m_Radius = 0.05f;
+    [SerializeField] private float m_RadiusFluctuation = 0.2f;
+
+    [SerializeField] private float m_WidthExponent = 2.0f;
+    [SerializeField] private float m_WidthExponentFluctutation = 1.0f;
+
+    public void GenerateStalactites(float spawnProbability, float maxHeight)
+    {
+        ClearStalactites();
+        foreach (var pos in m_StalactiteLocations)
+        {
+            if (Random.value > spawnProbability) continue;
+
+            float val = 1 - Random.value * Random.value;
+            val = val > 0.1f ? val : 0.1f;
+            float height = maxHeight * val;
+            float radius = m_Radius * val * (1 + m_RadiusFluctuation * Random.Range(-1.0f, 1.0f));
+
+            float widthExponent = m_WidthExponent * (1 + m_WidthExponentFluctutation * Random.Range(-1.0f, 1.0f));
+
+            float upCorrection = Mathf.Sin(m_AngleLimit) * radius;      
+
+            GenerateStalactite(pos + Vector3.up * upCorrection, height, radius, widthExponent);
+        }
+    }
+
+    private void GenerateStalactite(Vector3 pos, float height, float radius, float widthExponent)
+    {
+        List<Vector3> vertices = new List<Vector3>();
+        List<int> indices = new List<int>();
+
+        float segmentHeight = height / (m_NumPointsVertical - 1.0f);
+
+        for (int y = 0; y < m_NumPointsVertical; y++)
+        {
+            for (int i = 0; i < m_NumPointsHorizontal; i++)
+            {
+                float angle = (float)i / m_NumPointsHorizontal * Mathf.PI * 2.0f;
+                float level = 1.0f - Mathf.Pow((float)y / m_NumPointsVertical, widthExponent);
+                vertices.Add(new Vector3(Mathf.Cos(angle) * radius * level, -y * segmentHeight, Mathf.Sin(angle) * radius * level));
+            }
+        }
+        Vector3 tipPos = new Vector3(0.0f, -m_NumPointsVertical * segmentHeight, 0.0f);
+        vertices.Add(tipPos);
+        AddStalagmiteLocation(pos + tipPos);
+
+        for (int y = 0; y < m_NumPointsVertical - 1; y++)
+        {
+            for (int i = 0; i < m_NumPointsHorizontal; i++)
+            {
+                indices.Add(i + y * m_NumPointsHorizontal);
+                indices.Add((i + 1) % m_NumPointsHorizontal + y * m_NumPointsHorizontal);
+                indices.Add(i + (y + 1) * m_NumPointsHorizontal);
+
+                indices.Add((i + 1) % m_NumPointsHorizontal + y * m_NumPointsHorizontal);
+                indices.Add((i + 1) % m_NumPointsHorizontal + (y + 1) * m_NumPointsHorizontal);
+                indices.Add(i + (y + 1) * m_NumPointsHorizontal);
+            }
+        }
+        for (int i = 0; i < m_NumPointsHorizontal; i++)
+        {
+            indices.Add(i + (m_NumPointsVertical - 1) * m_NumPointsHorizontal);
+            indices.Add((i + 1) % m_NumPointsHorizontal + (m_NumPointsVertical - 1) * m_NumPointsHorizontal);
+            indices.Add(m_NumPointsVertical * m_NumPointsHorizontal);
+        }
+
+        Mesh mesh = new Mesh();
+        mesh.SetVertices(vertices);
+        mesh.SetTriangles(indices, 0);
+        mesh.RecalculateNormals();
+
+        Transform t = Instantiate(m_StalactitePrefab, m_StalactitesParent);
+        t.position = pos;
+        t.GetComponentInChildren<MeshFilter>().mesh = mesh;
+    }
+
+    private void AddStalagmiteLocation(Vector3 startPos)
+    {
+        Ray ray = new Ray(startPos, Vector3.down);
+        RaycastHit hit;
+        if (Physics.Raycast(ray, out hit, 20.0f))
+        {
+            MeshCollider meshCollider = hit.collider as MeshCollider;
+
+            if (meshCollider != null)
+            {
+                if (Vector3.Dot(hit.normal, Vector3.up) < Mathf.Cos(Mathf.Deg2Rad * m_AngleLimit)) return;
+
+                m_StalagmiteLocations.Add(hit.point);
+            }
+        }
+    }
+
+    public void GenerateStalagmites(float maxHeight)
+    {
+        ClearStalagmites();
+        foreach (var pos in m_StalagmiteLocations)
+        {
+            float val = 1 - Random.value * Random.value;
+            val = val > 0.1f ? val : 0.1f;
+            float height = maxHeight * val;
+            float radius = m_Radius * val * (1 + m_RadiusFluctuation * Random.Range(-1.0f, 1.0f));
+
+            float widthExponent = m_WidthExponent * (1 + m_WidthExponentFluctutation * Random.Range(-1.0f, 1.0f));
+
+            float upCorrection = Mathf.Sin(m_AngleLimit) * radius;
+
+            GenerateStalagmite(pos + Vector3.down * upCorrection, height, radius, widthExponent);
+        }
+    }
+
+    private void GenerateStalagmite(Vector3 pos, float height, float radius, float widthExponent)
+    {
+        List<Vector3> vertices = new List<Vector3>();
+        List<int> indices = new List<int>();
+
+        float segmentHeight = height / (m_NumPointsVertical - 1.0f);
+
+        for (int y = 0; y < m_NumPointsVertical; y++)
+        {
+            for (int i = 0; i < m_NumPointsHorizontal; i++)
+            {
+                float angle = (float)i / m_NumPointsHorizontal * Mathf.PI * 2.0f;
+                float level = 1.0f - Mathf.Pow((float)y / m_NumPointsVertical, widthExponent);
+                vertices.Add(new Vector3(Mathf.Cos(angle) * radius * level, y * segmentHeight, Mathf.Sin(angle) * radius * level));
+            }
+        }
+        Vector3 tipPos = new Vector3(0.0f, m_NumPointsVertical * segmentHeight, 0.0f);
+        vertices.Add(tipPos);
+
+        for (int y = 0; y < m_NumPointsVertical - 1; y++)
+        {
+            for (int i = 0; i < m_NumPointsHorizontal; i++)
+            {
+                indices.Add(i + y * m_NumPointsHorizontal);
+                indices.Add(i + (y + 1) * m_NumPointsHorizontal);
+                indices.Add((i + 1) % m_NumPointsHorizontal + y * m_NumPointsHorizontal);
+
+                indices.Add((i + 1) % m_NumPointsHorizontal + y * m_NumPointsHorizontal);
+                indices.Add(i + (y + 1) * m_NumPointsHorizontal);
+                indices.Add((i + 1) % m_NumPointsHorizontal + (y + 1) * m_NumPointsHorizontal);
+            }
+        }
+        for (int i = 0; i < m_NumPointsHorizontal; i++)
+        {
+            indices.Add(i + (m_NumPointsVertical - 1) * m_NumPointsHorizontal);
+            indices.Add(m_NumPointsVertical * m_NumPointsHorizontal);
+            indices.Add((i + 1) % m_NumPointsHorizontal + (m_NumPointsVertical - 1) * m_NumPointsHorizontal);
+        }
+
+        Mesh mesh = new Mesh();
+        mesh.SetVertices(vertices);
+        mesh.SetTriangles(indices, 0);
+        mesh.RecalculateNormals();
+                
+        Transform t = Instantiate(m_StalactitePrefab, m_StalagmitesParent);
+        t.position = pos;
+        t.GetComponentInChildren<MeshFilter>().mesh = mesh;
     }
 }

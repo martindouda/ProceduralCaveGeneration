@@ -49,7 +49,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _Albedo:
-        m_Texture: {fileID: 2800000, guid: d86901ac1bff0cc41817be0c2f06f441, type: 3}
+        m_Texture: {fileID: 2800000, guid: e33dd16ce7fd124438a87123d2975dcb, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _AnisotropyMap:
@@ -77,7 +77,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Displacement:
-        m_Texture: {fileID: 2800000, guid: 44abd4e0d60e9a844815b1b17791505a, type: 3}
+        m_Texture: {fileID: 2800000, guid: 1c4a76c2e5b290e46ba6c9368013f1ec, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _EmissiveColorMap:
@@ -105,7 +105,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Normal:
-        m_Texture: {fileID: 2800000, guid: 2b630ef20ca4c9b49946a527d0fe6495, type: 3}
+        m_Texture: {fileID: 2800000, guid: e10ce5c3dc8f8d04ab91460c9d222626, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NormalMap:
@@ -117,7 +117,7 @@ Material:
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _Roughness:
-        m_Texture: {fileID: 2800000, guid: 015871fc6f1f972488a6a3645272ff9f, type: 3}
+        m_Texture: {fileID: 2800000, guid: 885b57cf1c3d0854cb576bade88b34d7, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _SpecularColorMap:
@@ -178,7 +178,7 @@ Material:
     - _AlphaSrcBlend: 1
     - _Anisotropy: 0
     - _BlendMode: 0
-    - _Blending: 2
+    - _Blending: 0.05
     - _BlendingTop: 1
     - _CoatMask: 0
     - _ConservativeDepthOffsetEnable: 0
@@ -218,6 +218,7 @@ Material:
     - _HeightPoMAmplitude: 2
     - _HeightTessAmplitude: 2
     - _HeightTessCenter: 0.5
+    - _Improve: 1
     - _InvTilingScale: 1
     - _Ior: 1.5
     - _IridescenceMask: 1
@@ -243,6 +244,7 @@ Material:
     - _RefractionModel: 0
     - _RenderQueueType: 1
     - _RequireSplitLighting: 0
+    - _Roughness_Smoothness: 0
     - _Smoothness: 0.5
     - _SmoothnessRemapMax: 1
     - _SmoothnessRemapMin: 0

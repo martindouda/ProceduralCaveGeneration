@@ -14,6 +14,7 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField] private Transform m_LineRenderersParent;
     [SerializeField] private Transform m_HorizonsParent;
     [SerializeField] private Transform m_FracturesParent;
+    [SerializeField] private Transform m_StalactitesParent;
 
     [SerializeField] private LineRenderer m_LineRendererPrefab;
 
@@ -48,6 +49,9 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField, Range(0.1f, 5.0f)] private float m_PrimitiveRadius = 2.5f;
     [SerializeField, Range(0.1f, 2.0f)] private float m_DiscRadius = 1.0f;
     [SerializeField, Range(0.01f, 1.0f)] private float m_DiscPower = 1.0f;
+    [Space(20), Header("STALACTITES")]
+    [SerializeField, Range(0.0f, 1.0f)] private float m_StalactiteSpawnProbability = 0.1f;
+    [SerializeField, Range(0.1f, 5.0f)] private float m_StalactiteMaxHeight = 2.0f;
 
     // Poisson spheres
     private PoissonSpheres m_PoissonSpheres;
@@ -88,7 +92,6 @@ public class CaveGenerator : MonoBehaviour
         m_SpherePool = GetComponent<SpherePool>();
         m_Paths = new List<Path>();
         m_MeshGenerator = GetComponent<MeshGenerator>();
-        RenderMesh(false);
     }
 
     // Detect key point's movement.
@@ -165,6 +168,12 @@ public class CaveGenerator : MonoBehaviour
         m_MeshGenerator.SweepPrimitives(m_Paths, m_TerrainEditsPerUnit, m_SweepingPrimitiveGenerator);
         m_MeshGenerator.CreateShape();
         m_MeshGenerator.UpdateMesh();
+    }
+
+    public void GenerateStalactites()
+    {
+        m_MeshGenerator.GenerateStalactites(m_StalactiteSpawnProbability, m_StalactiteMaxHeight);
+        m_MeshGenerator.GenerateStalagmites(m_StalactiteMaxHeight);
     }
 
     // Generates additional tunnels spreading from the paths.
@@ -585,5 +594,15 @@ public class CaveGenerator : MonoBehaviour
     public void SetTransparency(float value)
     {
         Debug.Log("Transparency set to: " + value);
+    }
+
+    public void RenderKeyPoints(bool value)
+    {
+        m_KeyPointsParent.gameObject.SetActive(value);
+    }
+
+    public void RenderStalactites(bool value)
+    {
+        m_StalactitesParent.gameObject.SetActive(value);
     }
 }

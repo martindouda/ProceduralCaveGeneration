@@ -6,8 +6,10 @@ using UnityEditor;
 public class CaveGeneratorEditor : Editor
 {
     private static bool m_ShowNeighbourToggle = false;
+    private static bool m_RenderKeyPoints = false;
     private static bool m_RenderPathsToggle = false;
-    private static bool m_RenderMeshToggle = false;
+    private static bool m_RenderMeshToggle = true;
+    private static bool m_RenderStalactites = true;
 
     private static int m_SelectedVisualizationOption = 0;
     private static string[] m_VisualizationOptions = { "Disabled", "Points On Path", "Spheres On Path", "All Spheres" };
@@ -31,7 +33,8 @@ public class CaveGeneratorEditor : Editor
             m_SelectedVisualizationOption = 0;
             m_ShowNeighbourToggle = false;
             m_RenderPathsToggle = false;
-            
+            m_RenderMeshToggle = true;
+
             if (caveGenerator.CheckSpheresDistributionReady())
             {
                 caveGenerator.RenderPoissonSpheres(m_SelectedVisualizationOption, m_ShowNeighbourToggle);
@@ -91,6 +94,16 @@ public class CaveGeneratorEditor : Editor
                 EditorGUILayout.EndHorizontal();
             }
         }
+        { 
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Render Key Points", GUILayout.Width(200));
+            if (m_RenderKeyPoints != (m_RenderKeyPoints = EditorGUILayout.Toggle(m_RenderKeyPoints)))
+            {
+                caveGenerator.RenderKeyPoints(m_RenderKeyPoints);   
+            }
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+        }
         {
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("Render Paths", GUILayout.Width(200));
@@ -118,26 +131,41 @@ public class CaveGeneratorEditor : Editor
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
         }
+        { 
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Render Render Stalactites", GUILayout.Width(200));
+            if (m_RenderStalactites != (m_RenderStalactites = EditorGUILayout.Toggle(m_RenderStalactites)))
+            {
+                caveGenerator.RenderStalactites(m_RenderStalactites);   
+            }
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+        }
         {
+            int buttonWidth = 125;
             EditorGUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button("Generate Spheres", GUILayout.Width(150)))
+            if (GUILayout.Button("Generate Spheres", GUILayout.Width(buttonWidth)))
             {
                 float time = Time.realtimeSinceStartup;
                 caveGenerator.GeneratePoissonSpheres();
                 m_GenerateSpheresDuration = Time.realtimeSinceStartup - time;
             }
-            if (GUILayout.Button("Generate Paths", GUILayout.Width(150)))
+            if (GUILayout.Button("Generate Paths", GUILayout.Width(buttonWidth)))
             {
                 float time = Time.realtimeSinceStartup;
                 caveGenerator.GeneratePaths();
                 m_GeneratePathsDuration = Time.realtimeSinceStartup - time;
             }
-            if (GUILayout.Button("Generate Mesh", GUILayout.Width(150)))
+            if (GUILayout.Button("Generate Mesh", GUILayout.Width(buttonWidth)))
             {
                 float time = Time.realtimeSinceStartup;
                 caveGenerator.GenerateMesh();
                 m_GenerateMeshDuration = Time.realtimeSinceStartup - time;
+            }
+            if (GUILayout.Button("Generate Stalactites", GUILayout.Width(buttonWidth)))
+            {
+                caveGenerator.GenerateStalactites();
             }
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();

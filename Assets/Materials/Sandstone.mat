@@ -66,19 +66,21 @@ Material:
     - _AlphaDstBlend: 0
     - _AlphaSrcBlend: 1
     - _BlendMode: 0
-    - _Blending: 5
+    - _Blending: 0.294
     - _BlendingTop: 1
     - _ConservativeDepthOffsetEnable: 0
     - _CullMode: 0
     - _CullModeForward: 0
     - _DepthOffsetEnable: 0
-    - _DisplacementMultiplier: 0.05
+    - _DisplacementMultiplier: 0.02
     - _DoubleSidedEnable: 1
     - _DoubleSidedGIMode: 0
     - _DoubleSidedNormalMode: 2
     - _DstBlend: 0
     - _EnableBlendModePreserveSpecularLighting: 1
     - _EnableFogOnTransparent: 1
+    - _ExcludeFromTUAndAA: 0
+    - _Improve: 1
     - _OpaqueCullMode: 2
     - _RayTracing: 0
     - _ReceivesSSR: 1
@@ -86,6 +88,7 @@ Material:
     - _RefractionModel: 0
     - _RenderQueueType: 1
     - _RequireSplitLighting: 0
+    - _Roughness_Smoothness: 0
     - _Smoothness: 0.227
     - _SrcBlend: 1
     - _StencilRef: 0
@@ -100,6 +103,8 @@ Material:
     - _StencilWriteMaskMV: 41
     - _SupportDecals: 1
     - _SurfaceType: 0
+    - _TesselationFactor: 32
+    - _TesselationPower: 2
     - _TessellationBackFaceCullEpsilon: -0.25
     - _TessellationFactorMaxDistance: 50
     - _TessellationFactorMinDistance: 20
