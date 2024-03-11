@@ -15,6 +15,7 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField] private Transform m_HorizonsParent;
     [SerializeField] private Transform m_FracturesParent;
     [SerializeField] private Transform m_StalactitesParent;
+    [SerializeField] private Transform m_StalagmitesParent;
 
     [SerializeField] private LineRenderer m_LineRendererPrefab;
 
@@ -49,9 +50,11 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField, Range(0.1f, 5.0f)] private float m_PrimitiveRadius = 2.5f;
     [SerializeField, Range(0.1f, 2.0f)] private float m_DiscRadius = 1.0f;
     [SerializeField, Range(0.01f, 1.0f)] private float m_DiscPower = 1.0f;
-    [Space(20), Header("STALACTITES")]
+    [Space(20), Header("SPELEOTHEMS")]
     [SerializeField, Range(0.0f, 1.0f)] private float m_StalactiteSpawnProbability = 0.1f;
-    [SerializeField, Range(0.1f, 5.0f)] private float m_StalactiteMaxHeight = 2.0f;
+    [SerializeField, Range(0.0f, 1.0f)] private float m_StalagmiteBelowStalactiteSpawnProbability = 0.5f;
+    [SerializeField, Range(0.0f, 1.0f)] private float m_StrawProbability = 0.5f;
+    [SerializeField, Range(0.1f, 5.0f)] private float m_SpeleothemsMaxHeight = 2.0f;
 
     // Poisson spheres
     private PoissonSpheres m_PoissonSpheres;
@@ -172,8 +175,7 @@ public class CaveGenerator : MonoBehaviour
 
     public void GenerateStalactites()
     {
-        m_MeshGenerator.GenerateStalactites(m_StalactiteSpawnProbability, m_StalactiteMaxHeight);
-        m_MeshGenerator.GenerateStalagmites(m_StalactiteMaxHeight);
+        m_MeshGenerator.GenerateSpeleothems(m_StalactiteSpawnProbability, m_StalagmiteBelowStalactiteSpawnProbability, m_StrawProbability, m_SpeleothemsMaxHeight);
     }
 
     // Generates additional tunnels spreading from the paths.
@@ -601,8 +603,14 @@ public class CaveGenerator : MonoBehaviour
         m_KeyPointsParent.gameObject.SetActive(value);
     }
 
-    public void RenderStalactites(bool value)
+    public void RenderSpeleothems(bool value)
     {
         m_StalactitesParent.gameObject.SetActive(value);
+        m_StalagmitesParent.gameObject.SetActive(value);
+    }
+
+    internal void GenerateWater()
+    {
+        m_MeshGenerator.FindPlaceForWater();
     }
 }

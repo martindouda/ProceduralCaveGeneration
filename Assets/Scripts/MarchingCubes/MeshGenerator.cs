@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using static UnityEditor.PlayerSettings;
 using static UnityEngine.Rendering.HighDefinition.ScalableSettingLevelParameter;
 
 
@@ -7,13 +8,12 @@ using static UnityEngine.Rendering.HighDefinition.ScalableSettingLevelParameter;
 public class MeshGenerator : MonoBehaviour
 {
     private Mesh m_Mesh;
-
+    
     private List<Vector3> m_Vertices;
     private List<Vector3> m_Normals;
     private List<int> m_Indices;
 
-    private List<Vector3> m_StalactiteLocations;
-    private List<Vector3> m_StalagmiteLocations;
+    private List<Vector3> m_TopSpeleosLocations;
 
     private Vector3 m_Size;
     private Vector3Int m_ArraySize;
@@ -28,10 +28,11 @@ public class MeshGenerator : MonoBehaviour
 
     private float[] m_Grid;
 
-    // Stalactites
-    [SerializeField] private Transform m_StalactitesParent;
-    [SerializeField] private Transform m_StalagmitesParent;
-    [SerializeField] private Transform m_StalactitePrefab;
+    // Speleothems
+    [SerializeField] private Transform m_SpeleoNormalPrefab;
+    [SerializeField] private Transform m_SpeleoStrawPrefab;
+    [SerializeField] private Transform m_TopSpeleoParent;
+    [SerializeField] private Transform m_BotSpeleoParent;
     [SerializeField, Range(1.0f, 45.0f)] private float m_AngleLimit = 3.0f;
 
     public void Generate(Vector3 sizeFloat, float scale, float boundry, float editPower, float primitiveRadius, float discRaius)
@@ -55,17 +56,6 @@ public class MeshGenerator : MonoBehaviour
         MeshCollider meshCollider = GetComponent<MeshCollider>();
         meshCollider.sharedMesh = m_Mesh;
         meshCollider.enabled = false;
-        meshCollider.enabled = true;
-    }
-
-    private void OnDrawGizmos()
-    {
-        if (m_StalagmiteLocations == null) return;
-
-        foreach (var stalagmite in m_StalagmiteLocations)
-        {
-            Gizmos.DrawSphere(stalagmite, 0.1f);
-        }
     }
 
     private void CreateGrid()
@@ -112,15 +102,14 @@ public class MeshGenerator : MonoBehaviour
 
     public void CreateShape()
     {
-        ClearStalactites();
-        ClearStalagmites();
+        ClearTopSpeleo();
+        ClearBotSpeleo();
             
         m_Vertices = new List<Vector3>();
         m_Normals = new List<Vector3>();
         m_Indices = new List<int>();
         m_VertexDict = new Dictionary<Vector3, int>();
-        m_StalactiteLocations = new List<Vector3>();
-        m_StalagmiteLocations = new List<Vector3>();
+        m_TopSpeleosLocations = new List<Vector3>();
 
         for (int y = 0; y < m_ArraySize.y; y++)
         {
@@ -180,7 +169,7 @@ public class MeshGenerator : MonoBehaviour
                                 v = 1.0f - v;
                             }
                             float w = 1.0f - u - v;
-                            m_StalactiteLocations.Add(vertexPos1 * u + vertexPos2 * v + vertexPos3 * w);
+                            m_TopSpeleosLocations.Add(vertexPos1 * u + vertexPos2 * v + vertexPos3 * w);
                         }
                         AddVertex(vertexPos1, normal);
                         AddVertex(vertexPos2, normal);
@@ -250,52 +239,90 @@ public class MeshGenerator : MonoBehaviour
         }
     }
 
-    public void ClearStalactites()
+
+    public void ClearTopSpeleo()
     {
-        while (m_StalactitesParent.childCount > 0)
+        while (m_TopSpeleoParent.childCount > 0)
         {
-            DestroyImmediate(m_StalactitesParent.GetChild(0).gameObject);
+            DestroyImmediate(m_TopSpeleoParent.GetChild(0).gameObject);
         }
     }
 
-    public void ClearStalagmites()
+    public void ClearBotSpeleo()
     {
-        while (m_StalagmitesParent.childCount > 0)
+        while (m_BotSpeleoParent.childCount > 0)
         {
-            DestroyImmediate(m_StalagmitesParent.GetChild(0).gameObject);
+            DestroyImmediate(m_BotSpeleoParent.GetChild(0).gameObject);
         }
     }
 
-    [SerializeField] private int m_NumPointsHorizontal = 10;
-    [SerializeField] private int m_NumPointsVertical = 20;
+    [SerializeField, Range(0.0f, 1.0f)] private float m_StalagmiteHeightCoefficient = 0.5f;
+    [SerializeField, Range(1.0f, 2.0f)] private float m_StalagmiteRadiusCoefficient = 1.2f;
+
     [SerializeField] private float m_Radius = 0.05f;
-    [SerializeField] private float m_RadiusFluctuation = 0.2f;
+    [SerializeField, Range(0.0f, 1.0f)] private float m_RadiusFluctuation = 0.2f;
 
     [SerializeField] private float m_WidthExponent = 2.0f;
-    [SerializeField] private float m_WidthExponentFluctutation = 1.0f;
+    [SerializeField, Range(0.0f, 1.0f)] private float m_WidthExponentFluctutation = 1.0f;
 
-    public void GenerateStalactites(float spawnProbability, float maxHeight)
+
+    public void GenerateSpeleothems(float spawnProbability, float stalagmiteProability, float strawProbability, float maxHeight)
     {
-        ClearStalactites();
-        foreach (var pos in m_StalactiteLocations)
+        MeshCollider meshCollider = GetComponent<MeshCollider>();
+        meshCollider.enabled = true;
+        ClearTopSpeleo();
+        ClearBotSpeleo();
+
+        Vector3 upCorrection = Vector3.up * Mathf.Sin(m_AngleLimit) * m_Radius * (1 + m_RadiusFluctuation);
+        foreach (var pos in m_TopSpeleosLocations)
         {
             if (Random.value > spawnProbability) continue;
 
-            float val = 1 - Random.value * Random.value;
-            val = val > 0.1f ? val : 0.1f;
-            float height = maxHeight * val;
-            float radius = m_Radius * val * (1 + m_RadiusFluctuation * Random.Range(-1.0f, 1.0f));
+            float randVal = Mathf.Clamp(1.0f - Random.value * Random.value, 0.1f, 1.0f);
+            if (Random.value < strawProbability)
+            {
+                float strawHeight = maxHeight * randVal                                                                             * 0.5f;
+                float strawRadius = m_Radius * randVal * (1 + m_RadiusFluctuation * (Random.value * 2 - 1.0f))                      * 0.2f;
+                float strawWidthExponent = m_WidthExponent                                                                          * 10.0f;
+                GenerateTopSpeleo(pos + upCorrection, strawHeight, strawRadius, strawWidthExponent, SpeleoType.Straw);
+            }
+            else
+            {
+                float height = maxHeight * randVal;
+                float radius = m_Radius * randVal * (1 + m_RadiusFluctuation * (Random.value * 2 - 1.0f));
+                float widthExponent = m_WidthExponent * (1 + m_WidthExponentFluctutation * Random.Range(-1.0f, 1.0f));
+                BotSpeleo botSpeleo = GenerateTopSpeleo(pos + upCorrection, height, radius, widthExponent, SpeleoType.Normal);
 
-            float widthExponent = m_WidthExponent * (1 + m_WidthExponentFluctutation * Random.Range(-1.0f, 1.0f));
+                if (!botSpeleo.generate || Random.value > stalagmiteProability) continue;
 
-            float upCorrection = Mathf.Sin(m_AngleLimit) * radius;      
-
-            GenerateStalactite(pos + Vector3.up * upCorrection, height, radius, widthExponent);
+                height = height * m_StalagmiteHeightCoefficient;
+                radius = radius * m_StalagmiteRadiusCoefficient;
+                widthExponent = widthExponent + 2.0f;
+                GenerateBotSpeleo(botSpeleo.pos - upCorrection, height, radius, widthExponent);
+            }
         }
     }
 
-    private void GenerateStalactite(Vector3 pos, float height, float radius, float widthExponent)
+    enum SpeleoType
     {
+        Normal, Straw
+    }
+
+    struct BotSpeleo
+    {
+        public Vector3 pos;
+        public float height;
+
+        public bool generate;
+    }
+
+    [SerializeField] private int m_NumPointsHorizontal = 20;
+    [SerializeField] private int m_NumPointsVertical = 20;
+
+    private BotSpeleo GenerateTopSpeleo(Vector3 pos, float height, float radius, float widthExponent, SpeleoType speleoType)
+    {
+        BotSpeleo ret = new BotSpeleo() { generate = false };
+
         List<Vector3> vertices = new List<Vector3>();
         List<int> indices = new List<int>();
 
@@ -310,9 +337,33 @@ public class MeshGenerator : MonoBehaviour
                 vertices.Add(new Vector3(Mathf.Cos(angle) * radius * level, -y * segmentHeight, Mathf.Sin(angle) * radius * level));
             }
         }
-        Vector3 tipPos = new Vector3(0.0f, -m_NumPointsVertical * segmentHeight, 0.0f);
+        Vector3 tipPos;
+        if (widthExponent > 1.0f)
+        {
+            tipPos = new Vector3(0.0f, -(m_NumPointsVertical - 1) * segmentHeight, 0.0f);
+        }
+        else
+        {
+            tipPos = new Vector3(0.0f, -m_NumPointsVertical * segmentHeight, 0.0f);
+        }
         vertices.Add(tipPos);
-        AddStalagmiteLocation(pos + tipPos);
+
+
+        Ray ray = new Ray(pos, Vector3.down);
+        RaycastHit hit;
+        if (Physics.Raycast(ray, out hit, 20.0f))
+        {
+            MeshCollider meshCollider = hit.collider as MeshCollider;
+
+            if (meshCollider != null)
+            {
+                if (Vector3.Dot(hit.normal, Vector3.up) < Mathf.Cos(Mathf.Deg2Rad * m_AngleLimit)) return ret;
+
+                ret.generate = true;
+                ret.pos = hit.point;
+            }
+        }
+
 
         for (int y = 0; y < m_NumPointsVertical - 1; y++)
         {
@@ -339,47 +390,18 @@ public class MeshGenerator : MonoBehaviour
         mesh.SetTriangles(indices, 0);
         mesh.RecalculateNormals();
 
-        Transform t = Instantiate(m_StalactitePrefab, m_StalactitesParent);
+        Transform t;
+
+        if (speleoType == SpeleoType.Straw) t = Instantiate(m_SpeleoStrawPrefab, m_TopSpeleoParent);
+        else t = Instantiate(m_SpeleoNormalPrefab, m_TopSpeleoParent);
+
         t.position = pos;
         t.GetComponentInChildren<MeshFilter>().mesh = mesh;
+
+        return ret;
     }
 
-    private void AddStalagmiteLocation(Vector3 startPos)
-    {
-        Ray ray = new Ray(startPos, Vector3.down);
-        RaycastHit hit;
-        if (Physics.Raycast(ray, out hit, 20.0f))
-        {
-            MeshCollider meshCollider = hit.collider as MeshCollider;
-
-            if (meshCollider != null)
-            {
-                if (Vector3.Dot(hit.normal, Vector3.up) < Mathf.Cos(Mathf.Deg2Rad * m_AngleLimit)) return;
-
-                m_StalagmiteLocations.Add(hit.point);
-            }
-        }
-    }
-
-    public void GenerateStalagmites(float maxHeight)
-    {
-        ClearStalagmites();
-        foreach (var pos in m_StalagmiteLocations)
-        {
-            float val = 1 - Random.value * Random.value;
-            val = val > 0.1f ? val : 0.1f;
-            float height = maxHeight * val;
-            float radius = m_Radius * val * (1 + m_RadiusFluctuation * Random.Range(-1.0f, 1.0f));
-
-            float widthExponent = m_WidthExponent * (1 + m_WidthExponentFluctutation * Random.Range(-1.0f, 1.0f));
-
-            float upCorrection = Mathf.Sin(m_AngleLimit) * radius;
-
-            GenerateStalagmite(pos + Vector3.down * upCorrection, height, radius, widthExponent);
-        }
-    }
-
-    private void GenerateStalagmite(Vector3 pos, float height, float radius, float widthExponent)
+    private void GenerateBotSpeleo(Vector3 pos, float height, float radius, float widthExponent)
     {
         List<Vector3> vertices = new List<Vector3>();
         List<int> indices = new List<int>();
@@ -395,7 +417,7 @@ public class MeshGenerator : MonoBehaviour
                 vertices.Add(new Vector3(Mathf.Cos(angle) * radius * level, y * segmentHeight, Mathf.Sin(angle) * radius * level));
             }
         }
-        Vector3 tipPos = new Vector3(0.0f, m_NumPointsVertical * segmentHeight, 0.0f);
+        Vector3 tipPos = new Vector3(0.0f, (m_NumPointsVertical - 1) * segmentHeight, 0.0f);
         vertices.Add(tipPos);
 
         for (int y = 0; y < m_NumPointsVertical - 1; y++)
@@ -423,8 +445,84 @@ public class MeshGenerator : MonoBehaviour
         mesh.SetTriangles(indices, 0);
         mesh.RecalculateNormals();
                 
-        Transform t = Instantiate(m_StalactitePrefab, m_StalagmitesParent);
+        Transform t = Instantiate(m_SpeleoNormalPrefab, m_BotSpeleoParent);
         t.position = pos;
         t.GetComponentInChildren<MeshFilter>().mesh = mesh;
+    }
+
+
+    private List<Vector3> m_LowGrounds = new List<Vector3>();
+    private List<Vector3Int> m_Minimas = new List<Vector3Int>();
+    public void FindPlaceForWater()
+    {
+        m_LowGrounds = new List<Vector3>();
+        bool[] visited = new bool[(m_ArraySize.x + 1) * (m_ArraySize.z + 1) * (m_ArraySize.y + 1)];
+        bool GetVisited(int x, int y, int z) { return visited[x + z * (m_ArraySize.x + 1) + y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)]; }
+        void SetVisited(int x, int y, int z) { visited[x + z * (m_ArraySize.x + 1) + y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)] = true; }
+        for (int y = 0; y < m_ArraySize.y; y++)
+        {
+            for (int z = 0; z <= m_ArraySize.z; z++)
+            {
+                for (int x = 0; x <= m_ArraySize.x; x++)
+                {
+                    visited[x + z * (m_ArraySize.x + 1) + y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)] = false;
+                }
+            }
+        }
+
+
+        int[,] neighboursOnLevel = new int[,] { { -1, -1 }, { -1, 0 }, { -1, 1 }, { 0, -1 }, { 0, 1 }, { 1, -1 }, { 1, 0 }, { 1, 1 } };
+        //int[,] neighboursDown = new int[,] { { -1, -1, -1 }, { -1, -1, 0 }, { -1, -1, 1 }, { 0, -1, -1 }, { 0, -1, 0 }, { 0, -1, 1 }, { 1, -1, -1 }, { 1, -1, 0 }, { 1, -1, 1 } };
+        for (int y = m_ArraySize.y-1; y >= 0; y--)
+        {
+            for (int z = 0; z <= m_ArraySize.z; z++)
+            {
+                for (int x = 0; x <= m_ArraySize.x; x++)
+                {
+                    if (GetFromGrid(x, y, z) > m_Boundry || GetVisited(x, y, z)) continue;
+
+                    ExplorePancake(new Vector3Int(x, y, z));
+                }
+            }
+        }
+
+        void ExplorePancake(Vector3Int start)
+        {
+            Queue<Vector3Int> q = new Queue<Vector3Int>();
+            q.Enqueue(start);
+            SetVisited(start.x, start.y, start.z);
+
+            bool continuesDown = false;
+            while (q.Count > 0)
+            {
+                Vector3Int v = q.Dequeue();
+                if (v.y > 0 && GetFromGrid(v.x, v.y - 1, v.z) <= m_Boundry) continuesDown = true;
+
+                for (int i = 0; i < 8; i++)
+                {
+                    int yNext = v.y;
+                    int xNext = v.x + neighboursOnLevel[i, 0];
+                    int zNext = v.z + neighboursOnLevel[i, 1];
+                    if (xNext < 0 || xNext >= m_ArraySize.x || zNext < 0 || zNext >= m_ArraySize.z || GetFromGrid(xNext, yNext, zNext) > m_Boundry) continue;
+
+                    if (GetVisited(xNext, yNext, zNext)) continue;
+
+                    q.Enqueue(new Vector3Int(xNext, yNext, zNext));
+                    SetVisited(xNext, yNext, zNext);
+                }
+            }
+            if (!continuesDown) m_LowGrounds.Add(new Vector3(start.x - m_ArraySize.x / 2f, start.y - Mathf.CeilToInt(m_PrimitiveRadius), start.z - m_ArraySize.z / 2f) * m_Scale);
+            if (!continuesDown) m_Minimas.Add(start);
+        }
+
+            //{ -1, 1, -1},{-1, 1, 0},{-1, 1, 1},{0, 1,-1},{0, 1, 0},{0, 1, 1},{1, 1,-1},{1, 1, 0},{1, 1, 1}};
+    }
+
+    private void OnDrawGizmos()
+    {
+        for (int i = 0; i < Mathf.Min(m_LowGrounds.Count, 2000); i++)
+        {
+            Gizmos.DrawSphere(m_LowGrounds[i], 1.0f);
+        }
     }
 }
