@@ -453,10 +453,14 @@ public class MeshGenerator : MonoBehaviour
 
 
     private List<Vector3Int> m_Minimas = new List<Vector3Int>();
+    private List<Vector3Int> m_HighestPointsNearMinimas = new List<Vector3Int>();
+    private List<Vector3Int> m_TEMP = new List<Vector3Int>();
     [SerializeField] private int m_SearchHeight = 1;
     public void FindLowGrounds()
     {
         m_Minimas = new List<Vector3Int>();
+        m_HighestPointsNearMinimas = new List<Vector3Int>();
+        m_TEMP = new List<Vector3Int>();
         bool[] visited = new bool[(m_ArraySize.x + 1) * (m_ArraySize.z + 1) * (m_ArraySize.y + 1)];
         bool GetVisited(int x, int y, int z) { return visited[x + z * (m_ArraySize.x + 1) + y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)]; }
         void SetVisited(int x, int y, int z) { visited[x + z * (m_ArraySize.x + 1) + y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)] = true; }
@@ -485,9 +489,15 @@ public class MeshGenerator : MonoBehaviour
                 }
             }
         }
+        
+        for (int i = 0; i < m_HighestPointsNearMinimas.Count; i++)
+        {
+            CreateWaterShape(m_HighestPointsNearMinimas[i]);
+        }
 
         void ExplorePancake(Vector3Int start)
         {
+            Vector3Int highestPoint = start;
             Queue<Vector3Int> q = new Queue<Vector3Int>();
             Queue<Vector3Int> aboveQ = new Queue<Vector3Int>();
             HashSet<Vector3Int> pancakeVisited = new HashSet<Vector3Int>();
@@ -501,6 +511,7 @@ public class MeshGenerator : MonoBehaviour
                 while (q.Count > 0)
                 {
                     Vector3Int v = q.Dequeue();
+                    if (v.y > highestPoint.y) { highestPoint = v; }
                     if (v.y > 0 && GetFromGrid(v.x, v.y - 1, v.z) <= m_Boundry && !pancakeVisited.Contains(new Vector3Int(v.x, v.y - 1, v.z))) continuesDown = true;
 
                     if (v.y < m_ArraySize.y && GetFromGrid(v.x, v.y + 1, v.z) <= m_Boundry && start.y - v.y + 1 < m_SearchHeight)
@@ -525,15 +536,59 @@ public class MeshGenerator : MonoBehaviour
                 q = aboveQ;
                 aboveQ = new Queue<Vector3Int>();
             }
-            if (!continuesDown) m_Minimas.Add(start);
+            if (!continuesDown)
+            {
+                m_Minimas.Add(start);
+                m_HighestPointsNearMinimas.Add(highestPoint);
+            }
         }
-    }
 
-    private void OnDrawGizmos()
-    {
-        for (int i = 0; i < Mathf.Min(m_Minimas.Count, 2000); i++)
+        void CreateWaterShape(Vector3Int start)
         {
-            Gizmos.DrawSphere(new Vector3(m_Minimas[i].x - m_ArraySize.x / 2f, m_Minimas[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_Minimas[i].z - m_ArraySize.z / 2f) * m_Scale, 1.0f);
+            List<Vector3Int> positions = new List<Vector3Int>();
+            Queue<Vector3Int> q = new Queue<Vector3Int>();
+            HashSet<Vector3Int> pancakeVisited = new HashSet<Vector3Int>();
+            q.Enqueue(start);
+            pancakeVisited.Add(start);
+            positions.Add(start);
+            m_TEMP.Add(start);
+
+            for (int sh = 0; sh < m_SearchHeight; sh++)
+            {
+                while (q.Count > 0)
+                {
+                    Vector3Int v = q.Dequeue();
+                    positions.Add(v);
+                    
+                    for (int i = 0; i < 8; i++)
+                    {
+                        Vector3Int next = new Vector3Int(v.x + neighboursOnLevel[i, 0], v.y, v.z + neighboursOnLevel[i, 1]);
+                        if (next.x < 0 || next.x >= m_ArraySize.x || next.z < 0 || next.z >= m_ArraySize.z) continue;
+                        
+                        m_TEMP.Add(next);
+                        positions.Add(next);
+
+                        if (GetFromGrid(next.x, next.y, next.z) > m_Boundry || pancakeVisited.Contains(next)) continue;
+
+                        q.Enqueue(next);
+                        pancakeVisited.Add(next);
+                    }
+                }
+            }
+        }
+
+}
+
+
+private void OnDrawGizmos()
+    {
+        for (int i = 0; i < Mathf.Min(m_HighestPointsNearMinimas.Count, 2000); i++)
+        {
+            Gizmos.DrawSphere(new Vector3(m_HighestPointsNearMinimas[i].x - m_ArraySize.x / 2f, m_HighestPointsNearMinimas[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_HighestPointsNearMinimas[i].z - m_ArraySize.z / 2f) * m_Scale, 1.0f);
+        }
+        for (int i = 0; i < Mathf.Min(m_TEMP.Count, 2000); i++)
+        {
+            Gizmos.DrawSphere(new Vector3(m_TEMP[i].x - m_ArraySize.x / 2f, m_TEMP[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_TEMP[i].z - m_ArraySize.z / 2f) * m_Scale, 0.1f);
         }
     }
 }
