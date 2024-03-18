@@ -611,6 +611,6 @@ public class CaveGenerator : MonoBehaviour
 
     internal void GenerateWater()
     {
-        m_MeshGenerator.FindPlaceForWater();
+        m_MeshGenerator.FindLowGrounds();
     }
 }

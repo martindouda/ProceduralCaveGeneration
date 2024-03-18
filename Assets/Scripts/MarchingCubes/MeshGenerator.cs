@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Unity.VisualScripting;
 using UnityEngine;
 using static UnityEditor.PlayerSettings;
 using static UnityEngine.Rendering.HighDefinition.ScalableSettingLevelParameter;
@@ -451,11 +452,11 @@ public class MeshGenerator : MonoBehaviour
     }
 
 
-    private List<Vector3> m_LowGrounds = new List<Vector3>();
     private List<Vector3Int> m_Minimas = new List<Vector3Int>();
-    public void FindPlaceForWater()
+    [SerializeField] private int m_SearchHeight = 1;
+    public void FindLowGrounds()
     {
-        m_LowGrounds = new List<Vector3>();
+        m_Minimas = new List<Vector3Int>();
         bool[] visited = new bool[(m_ArraySize.x + 1) * (m_ArraySize.z + 1) * (m_ArraySize.y + 1)];
         bool GetVisited(int x, int y, int z) { return visited[x + z * (m_ArraySize.x + 1) + y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)]; }
         void SetVisited(int x, int y, int z) { visited[x + z * (m_ArraySize.x + 1) + y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)] = true; }
@@ -470,10 +471,9 @@ public class MeshGenerator : MonoBehaviour
             }
         }
 
-
         int[,] neighboursOnLevel = new int[,] { { -1, -1 }, { -1, 0 }, { -1, 1 }, { 0, -1 }, { 0, 1 }, { 1, -1 }, { 1, 0 }, { 1, 1 } };
-        //int[,] neighboursDown = new int[,] { { -1, -1, -1 }, { -1, -1, 0 }, { -1, -1, 1 }, { 0, -1, -1 }, { 0, -1, 0 }, { 0, -1, 1 }, { 1, -1, -1 }, { 1, -1, 0 }, { 1, -1, 1 } };
-        for (int y = m_ArraySize.y-1; y >= 0; y--)
+
+        for (int y = 0; y < m_ArraySize.y; y++)
         {
             for (int z = 0; z <= m_ArraySize.z; z++)
             {
@@ -489,40 +489,51 @@ public class MeshGenerator : MonoBehaviour
         void ExplorePancake(Vector3Int start)
         {
             Queue<Vector3Int> q = new Queue<Vector3Int>();
+            Queue<Vector3Int> aboveQ = new Queue<Vector3Int>();
+            HashSet<Vector3Int> pancakeVisited = new HashSet<Vector3Int>();
             q.Enqueue(start);
             SetVisited(start.x, start.y, start.z);
+            pancakeVisited.Add(start);
 
             bool continuesDown = false;
-            while (q.Count > 0)
+            for (int sh = 0; sh < m_SearchHeight; sh++)
             {
-                Vector3Int v = q.Dequeue();
-                if (v.y > 0 && GetFromGrid(v.x, v.y - 1, v.z) <= m_Boundry) continuesDown = true;
-
-                for (int i = 0; i < 8; i++)
+                while (q.Count > 0)
                 {
-                    int yNext = v.y;
-                    int xNext = v.x + neighboursOnLevel[i, 0];
-                    int zNext = v.z + neighboursOnLevel[i, 1];
-                    if (xNext < 0 || xNext >= m_ArraySize.x || zNext < 0 || zNext >= m_ArraySize.z || GetFromGrid(xNext, yNext, zNext) > m_Boundry) continue;
+                    Vector3Int v = q.Dequeue();
+                    if (v.y > 0 && GetFromGrid(v.x, v.y - 1, v.z) <= m_Boundry && !pancakeVisited.Contains(new Vector3Int(v.x, v.y - 1, v.z))) continuesDown = true;
 
-                    if (GetVisited(xNext, yNext, zNext)) continue;
+                    if (v.y < m_ArraySize.y && GetFromGrid(v.x, v.y + 1, v.z) <= m_Boundry && start.y - v.y + 1 < m_SearchHeight)
+                    {
+                        Vector3Int above = new Vector3Int(v.x, v.y + 1, v.z);
+                        aboveQ.Enqueue(above);
+                        pancakeVisited.Add(above);
+                    }
 
-                    q.Enqueue(new Vector3Int(xNext, yNext, zNext));
-                    SetVisited(xNext, yNext, zNext);
+                    for (int i = 0; i < 8; i++)
+                    {
+                        Vector3Int next = new Vector3Int(v.x + neighboursOnLevel[i, 0], v.y, v.z + neighboursOnLevel[i, 1]);
+                        if (next.x < 0 || next.x >= m_ArraySize.x || next.z < 0 || next.z >= m_ArraySize.z || GetFromGrid(next.x, next.y, next.z) > m_Boundry) continue;
+
+                        if (pancakeVisited.Contains(next)) continue;
+
+                        q.Enqueue(next);
+                        SetVisited(next.x, next.y, next.z);
+                        pancakeVisited.Add(next);
+                    }
                 }
+                q = aboveQ;
+                aboveQ = new Queue<Vector3Int>();
             }
-            if (!continuesDown) m_LowGrounds.Add(new Vector3(start.x - m_ArraySize.x / 2f, start.y - Mathf.CeilToInt(m_PrimitiveRadius), start.z - m_ArraySize.z / 2f) * m_Scale);
             if (!continuesDown) m_Minimas.Add(start);
         }
-
-            //{ -1, 1, -1},{-1, 1, 0},{-1, 1, 1},{0, 1,-1},{0, 1, 0},{0, 1, 1},{1, 1,-1},{1, 1, 0},{1, 1, 1}};
     }
 
     private void OnDrawGizmos()
     {
-        for (int i = 0; i < Mathf.Min(m_LowGrounds.Count, 2000); i++)
+        for (int i = 0; i < Mathf.Min(m_Minimas.Count, 2000); i++)
         {
-            Gizmos.DrawSphere(m_LowGrounds[i], 1.0f);
+            Gizmos.DrawSphere(new Vector3(m_Minimas[i].x - m_ArraySize.x / 2f, m_Minimas[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_Minimas[i].z - m_ArraySize.z / 2f) * m_Scale, 1.0f);
         }
     }
 }
