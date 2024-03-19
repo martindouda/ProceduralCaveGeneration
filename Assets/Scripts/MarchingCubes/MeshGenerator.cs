@@ -558,17 +558,16 @@ public class MeshGenerator : MonoBehaviour
                 while (q.Count > 0)
                 {
                     Vector3Int v = q.Dequeue();
-                    positions.Add(v);
                     
                     for (int i = 0; i < 8; i++)
                     {
                         Vector3Int next = new Vector3Int(v.x + neighboursOnLevel[i, 0], v.y, v.z + neighboursOnLevel[i, 1]);
-                        if (next.x < 0 || next.x >= m_ArraySize.x || next.z < 0 || next.z >= m_ArraySize.z) continue;
+                        if (next.x < 0 || next.x >= m_ArraySize.x || next.z < 0 || next.z >= m_ArraySize.z || pancakeVisited.Contains(next)) continue;
                         
-                        m_TEMP.Add(next);
                         positions.Add(next);
+                        m_TEMP.Add(next);
 
-                        if (GetFromGrid(next.x, next.y, next.z) > m_Boundry || pancakeVisited.Contains(next)) continue;
+                        if (GetFromGrid(next.x, next.y, next.z) > m_Boundry) continue;
 
                         q.Enqueue(next);
                         pancakeVisited.Add(next);
@@ -582,10 +581,10 @@ public class MeshGenerator : MonoBehaviour
 
 private void OnDrawGizmos()
     {
-        for (int i = 0; i < Mathf.Min(m_HighestPointsNearMinimas.Count, 2000); i++)
+        /*for (int i = 0; i < Mathf.Min(m_HighestPointsNearMinimas.Count, 2000); i++)
         {
             Gizmos.DrawSphere(new Vector3(m_HighestPointsNearMinimas[i].x - m_ArraySize.x / 2f, m_HighestPointsNearMinimas[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_HighestPointsNearMinimas[i].z - m_ArraySize.z / 2f) * m_Scale, 1.0f);
-        }
+        }*/
         for (int i = 0; i < Mathf.Min(m_TEMP.Count, 2000); i++)
         {
             Gizmos.DrawSphere(new Vector3(m_TEMP[i].x - m_ArraySize.x / 2f, m_TEMP[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_TEMP[i].z - m_ArraySize.z / 2f) * m_Scale, 0.1f);
