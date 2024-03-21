@@ -23,33 +23,32 @@ public class CaveGenerator : MonoBehaviour
 
     [SerializeField] private Material[] m_Materials = new Material[(int)PoissonSpheres.SphereType._SIZE];
 
-
-    [Space(20), Header("POISSON SPHERES")]
+    [Space(20), Header("SPHERES - POISSON SPHERES")]
     [SerializeField] private Vector3Int m_Size = new Vector3Int(50, 50, 50);
     [SerializeField, Range(0.5f, 5.0f)] private float m_MinSphereRadius = 1.0f;
     [SerializeField, Range(0.5f, 5.0f)] private float m_MaxSphereRadius = 3.0f;
     [SerializeField, Range(1.0f, 10.0f)] private float m_SpacingLimit = 2.0f;
     [SerializeField, Range(1, 100)] private int m_NumSamplesBeforeRejection = 30;
-    [Space(20), Header("SPHERES CONNECTION")]
+    [Space(20), Header("SPHERES - NEIGHBOUR CONNECTION")]
     [SerializeField, Range(1, 10)] private int m_SearchDistance = 5;
     [SerializeField, Range(1, 100)] private int m_IdealNumOfNearest = 30;
-    [Space(20), Header("PATH GENERATION")]
+    [Space(20), Header("PATHS - GENERATION")]
     [SerializeField, Range(0.0f, 100.0f)] private float m_HorizonsWeight = 10.0f;
     [SerializeField, Range(0.0f, 100.0f)] private float m_FracturesWeight = 10.0f;
-    [Space(20), Header("PRONING")]
+    [Space(20), Header("PATHS - PRONING")]
     [SerializeField, Range(0.0f, 100.0f)] private float m_ProningExponent = 1.0f;
-    [Space(20), Header("RAMIFICATION")]
+    [Space(20), Header("PATHS - RAMIFICATION")]
     [SerializeField, Range(0.0f, 1.0f)] private float m_BranchesPerPathNodeCoefficient = 0.5f;
     [SerializeField, Range(0.0f, 100.0f)] private float m_MaxDistFromPath = 10.0f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_ProbabilityOfBranchSpawn = 0.5f;
-    [Space(20), Header("MARCHING CUBES")]
-    [SerializeField, Range(0.1f, 5.0f)] private float m_MarchingCubesScale = 1.0f;
-    [SerializeField, Range(0.0f, 1.0f)] private float m_MarchingCubesBoundry = 0.5f;
-    [Space(20), Header("SWEEPING PRIMITIVES")]
+    [Space(20), Header("MESH - SWEEPING PRIMITIVES")]
     [SerializeField, Range(0.1f, 10.0f)] private float m_TerrainEditsPerUnit = 2.0f;
     [SerializeField, Range(0.1f, 5.0f)] private float m_PrimitiveRadius = 2.5f;
     [SerializeField, Range(0.1f, 2.0f)] private float m_DiscRadius = 1.0f;
     [SerializeField, Range(0.01f, 1.0f)] private float m_DiscPower = 1.0f;
+    [Space(20), Header("MESH - MARCHING CUBES")]
+    [SerializeField, Range(0.1f, 5.0f)] private float m_MarchingCubesScale = 1.0f;
+    [SerializeField, Range(0.0f, 1.0f)] private float m_MarchingCubesBoundry = 0.5f;
     [Space(20), Header("SPELEOTHEMS")]
     [SerializeField, Range(0.0f, 1.0f)] private float m_StalactiteSpawnProbability = 0.1f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_StalagmiteBelowStalactiteSpawnProbability = 0.5f;

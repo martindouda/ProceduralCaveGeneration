@@ -18,6 +18,8 @@ public class CaveGeneratorEditor : Editor
     private static float m_GenerateSpheresDuration;
     private static float m_GeneratePathsDuration;
     private static float m_GenerateMeshDuration;
+    private static float m_GenerateSpeleothemsDuration;
+    private static float m_GenerateWaterDuration;
 
     private static bool m_FirstRound = true;
 
@@ -165,11 +167,15 @@ public class CaveGeneratorEditor : Editor
             }
             if (GUILayout.Button("Generate Stalactites", GUILayout.Width(buttonWidth)))
             {
+                float time = Time.realtimeSinceStartup;
                 caveGenerator.GenerateStalactites();
+                m_GenerateSpeleothemsDuration = Time.realtimeSinceStartup - time;
             }
             if (GUILayout.Button("Generate Water", GUILayout.Width(buttonWidth)))
             {
+                float time = Time.realtimeSinceStartup;
                 caveGenerator.GenerateWater();
+                m_GenerateWaterDuration = Time.realtimeSinceStartup - time;
             }
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
@@ -188,6 +194,8 @@ public class CaveGeneratorEditor : Editor
             if (m_GenerateSpheresDuration > 0.0f) GUILayout.Label("Spheres took: " + m_GenerateSpheresDuration * 1000.0f + "ms");
             if (m_GeneratePathsDuration > 0.0f) GUILayout.Label("Paths took: " + m_GeneratePathsDuration * 1000.0f + "ms");
             if (m_GenerateMeshDuration > 0.0f) GUILayout.Label("Mesh took: " + m_GenerateMeshDuration * 1000.0f + "ms");
+            if (m_GenerateSpeleothemsDuration > 0.0f) GUILayout.Label("Speleothems took: " + m_GenerateSpeleothemsDuration * 1000.0f + "ms");
+            if (m_GenerateWaterDuration > 0.0f) GUILayout.Label("Water took: " + m_GenerateWaterDuration * 1000.0f + "ms");
         }
     }
 }

@@ -1,8 +1,6 @@
 using System.Collections.Generic;
-using Unity.VisualScripting;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
-using static UnityEditor.PlayerSettings;
-using static UnityEngine.Rendering.HighDefinition.ScalableSettingLevelParameter;
 
 
 [RequireComponent(typeof(MeshFilter))]
@@ -455,137 +453,164 @@ public class MeshGenerator : MonoBehaviour
     private List<Vector3Int> m_Minimas = new List<Vector3Int>();
     private List<Vector3Int> m_HighestPointsNearMinimas = new List<Vector3Int>();
     private List<Vector3Int> m_TEMP = new List<Vector3Int>();
-    [SerializeField] private int m_SearchHeight = 1;
+
+    [SerializeField, Range(0, 50)] private int m_SearchHeight = 0;
+
+    struct Node
+    { 
+        public int groupId;
+        public int height;
+    }
+
+    struct Group
+    {
+        public int min;
+        public int max;
+
+        public int localWaterHeight;
+        public int waterHeight;
+        
+        public Group(int min, int max, int maxWaterHeightFound=-1)
+        {
+            this.max = max;
+            this.min = min;
+            if (maxWaterHeightFound == -1 || maxWaterHeightFound <= min)
+            {
+                this.waterHeight = Random.Range(min, max + 1);
+            }
+            else
+            {
+                if (maxWaterHeightFound > max)
+                {
+                    this.waterHeight = maxWaterHeightFound;
+                }
+                else
+                {
+                    this.waterHeight = Random.Range(maxWaterHeightFound, max + 1);
+                }
+            }
+            this.localWaterHeight = waterHeight - min;
+        }
+    }   
+    
     public void FindLowGrounds()
     {
         m_Minimas = new List<Vector3Int>();
         m_HighestPointsNearMinimas = new List<Vector3Int>();
         m_TEMP = new List<Vector3Int>();
-        bool[] visited = new bool[(m_ArraySize.x + 1) * (m_ArraySize.z + 1) * (m_ArraySize.y + 1)];
-        bool GetVisited(int x, int y, int z) { return visited[x + z * (m_ArraySize.x + 1) + y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)]; }
-        void SetVisited(int x, int y, int z) { visited[x + z * (m_ArraySize.x + 1) + y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)] = true; }
-        for (int y = 0; y < m_ArraySize.y; y++)
+    
+        int sizeX = m_ArraySize.x + 1;
+        int sizeY = m_ArraySize.y + 1;
+        int sizeZ = m_ArraySize.z + 1;
+        int size = sizeX * sizeY * sizeZ;
+        Node[] heights = new Node[size];
+
+        Node GetNode(int x, int y, int z) { return heights[x + z * sizeX + y * sizeX * sizeZ]; }
+        void SetNode(int x, int y, int z, int height, int groupId)
         {
-            for (int z = 0; z <= m_ArraySize.z; z++)
-            {
-                for (int x = 0; x <= m_ArraySize.x; x++)
-                {
-                    visited[x + z * (m_ArraySize.x + 1) + y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)] = false;
-                }
-            }
+            int i = x + z * sizeX + y * sizeX * sizeZ;
+            heights[i].height = height;
+            heights[i].groupId = groupId;
         }
+        for (int i = 0; i < size; i++) heights[i] = new Node() { height = -1, groupId = -1 };
+
 
         int[,] neighboursOnLevel = new int[,] { { -1, -1 }, { -1, 0 }, { -1, 1 }, { 0, -1 }, { 0, 1 }, { 1, -1 }, { 1, 0 }, { 1, 1 } };
 
+        List<Group> groups = new List<Group>();
         for (int y = 0; y < m_ArraySize.y; y++)
         {
             for (int z = 0; z <= m_ArraySize.z; z++)
             {
                 for (int x = 0; x <= m_ArraySize.x; x++)
                 {
-                    if (GetFromGrid(x, y, z) > m_Boundry || GetVisited(x, y, z)) continue;
-
-                    ExplorePancake(new Vector3Int(x, y, z));
+                    if (GetFromGrid(x, y, z) <= m_Boundry && GetNode(x, y, z).height == -1)
+                    {
+                        ExploreGroup(new Vector3Int(x, y, z));
+                        m_Minimas.Add(new Vector3Int(x, y, z));
+                    }
+                    /*if (GetNode(x, y, z).height == m_SearchHeight)
+                    {
+                        m_TEMP.Add(new Vector3Int(x, y, z));
+                    }*/
                 }
             }
         }
-        
-        for (int i = 0; i < m_HighestPointsNearMinimas.Count; i++)
+        for (int y = 0; y < m_ArraySize.y; y++)
         {
-            CreateWaterShape(m_HighestPointsNearMinimas[i]);
+            for (int z = 0; z <= m_ArraySize.z; z++)
+            {
+                for (int x = 0; x <= m_ArraySize.x; x++)
+                {
+                    Node node = GetNode(x, y, z);
+                    if (node.height == -1) continue;
+
+                    if (node.height == groups[node.groupId].localWaterHeight)
+                    {
+                        m_TEMP.Add(new Vector3Int(x, y, z));
+                    }
+                }
+            }
         }
 
-        void ExplorePancake(Vector3Int start)
+        void ExploreGroup(Vector3Int start)
         {
-            Vector3Int highestPoint = start;
             Queue<Vector3Int> q = new Queue<Vector3Int>();
             Queue<Vector3Int> aboveQ = new Queue<Vector3Int>();
-            HashSet<Vector3Int> pancakeVisited = new HashSet<Vector3Int>();
+            int groupId = groups.Count;
+            int maxHeight = start.y;
+            int maxWaterHeightFound = -1;
             q.Enqueue(start);
-            SetVisited(start.x, start.y, start.z);
-            pancakeVisited.Add(start);
-
-            bool continuesDown = false;
-            for (int sh = 0; sh < m_SearchHeight; sh++)
+            SetNode(start.x, start.y, start.z, 0, groupId);
+            
+            while (q.Count > 0)
             {
                 while (q.Count > 0)
                 {
                     Vector3Int v = q.Dequeue();
-                    if (v.y > highestPoint.y) { highestPoint = v; }
-                    if (v.y > 0 && GetFromGrid(v.x, v.y - 1, v.z) <= m_Boundry && !pancakeVisited.Contains(new Vector3Int(v.x, v.y - 1, v.z))) continuesDown = true;
+                    int vHeight = GetNode(v.x, v.y, v.z).height;
 
-                    if (v.y < m_ArraySize.y && GetFromGrid(v.x, v.y + 1, v.z) <= m_Boundry && start.y - v.y + 1 < m_SearchHeight)
+                    Vector3Int above = new Vector3Int(v.x, v.y + 1, v.z);
+                    if (v.y < m_ArraySize.y && GetFromGrid(above.x, above.y, above.z) <= m_Boundry)
                     {
-                        Vector3Int above = new Vector3Int(v.x, v.y + 1, v.z);
-                        aboveQ.Enqueue(above);
-                        pancakeVisited.Add(above);
+                        Node node = GetNode(above.x, above.y, above.z);
+                        if (node.height == -1)
+                        {
+                            if (above.y > maxHeight) maxHeight = above.y;
+                            aboveQ.Enqueue(above);
+                            SetNode(above.x, above.y, above.z, vHeight + 1, groupId);
+                        } 
+                        else
+                        {
+                            int waterHeight = groups[node.groupId].waterHeight;
+                            if (maxWaterHeightFound < waterHeight) maxWaterHeightFound = waterHeight;
+                        }
                     }
 
                     for (int i = 0; i < 8; i++)
                     {
                         Vector3Int next = new Vector3Int(v.x + neighboursOnLevel[i, 0], v.y, v.z + neighboursOnLevel[i, 1]);
-                        if (next.x < 0 || next.x >= m_ArraySize.x || next.z < 0 || next.z >= m_ArraySize.z || GetFromGrid(next.x, next.y, next.z) > m_Boundry) continue;
-
-                        if (pancakeVisited.Contains(next)) continue;
+                        if (next.x < 0 || next.x >= m_ArraySize.x || next.z < 0 || next.z >= m_ArraySize.z || GetFromGrid(next.x, next.y, next.z) > m_Boundry || GetNode(next.x, next.y, next.z).height != -1) continue;
 
                         q.Enqueue(next);
-                        SetVisited(next.x, next.y, next.z);
-                        pancakeVisited.Add(next);
+                        SetNode(next.x, next.y, next.z, vHeight, groupId);
                     }
                 }
                 q = aboveQ;
                 aboveQ = new Queue<Vector3Int>();
             }
-            if (!continuesDown)
-            {
-                m_Minimas.Add(start);
-                m_HighestPointsNearMinimas.Add(highestPoint);
-            }
+
+            groups.Add(new Group(start.y, maxHeight, maxWaterHeightFound));
         }
+    }
 
-        void CreateWaterShape(Vector3Int start)
-        {
-            List<Vector3Int> positions = new List<Vector3Int>();
-            Queue<Vector3Int> q = new Queue<Vector3Int>();
-            HashSet<Vector3Int> pancakeVisited = new HashSet<Vector3Int>();
-            q.Enqueue(start);
-            pancakeVisited.Add(start);
-            positions.Add(start);
-            m_TEMP.Add(start);
-
-            for (int sh = 0; sh < m_SearchHeight; sh++)
-            {
-                while (q.Count > 0)
-                {
-                    Vector3Int v = q.Dequeue();
-                    
-                    for (int i = 0; i < 8; i++)
-                    {
-                        Vector3Int next = new Vector3Int(v.x + neighboursOnLevel[i, 0], v.y, v.z + neighboursOnLevel[i, 1]);
-                        if (next.x < 0 || next.x >= m_ArraySize.x || next.z < 0 || next.z >= m_ArraySize.z || pancakeVisited.Contains(next)) continue;
-                        
-                        positions.Add(next);
-                        m_TEMP.Add(next);
-
-                        if (GetFromGrid(next.x, next.y, next.z) > m_Boundry) continue;
-
-                        q.Enqueue(next);
-                        pancakeVisited.Add(next);
-                    }
-                }
-            }
-        }
-
-}
-
-
-private void OnDrawGizmos()
+    private void OnDrawGizmos()
     {
-        /*for (int i = 0; i < Mathf.Min(m_HighestPointsNearMinimas.Count, 2000); i++)
+        for (int i = 0; i < Mathf.Min(m_Minimas.Count, 2000); i++)
         {
-            Gizmos.DrawSphere(new Vector3(m_HighestPointsNearMinimas[i].x - m_ArraySize.x / 2f, m_HighestPointsNearMinimas[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_HighestPointsNearMinimas[i].z - m_ArraySize.z / 2f) * m_Scale, 1.0f);
-        }*/
-        for (int i = 0; i < Mathf.Min(m_TEMP.Count, 2000); i++)
+            Gizmos.DrawSphere(new Vector3(m_Minimas[i].x - m_ArraySize.x / 2f, m_Minimas[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_Minimas[i].z - m_ArraySize.z / 2f) * m_Scale, 1.0f);
+        }
+        for (int i = 0; i < Mathf.Min(m_TEMP.Count, 10000); i++)
         {
             Gizmos.DrawSphere(new Vector3(m_TEMP[i].x - m_ArraySize.x / 2f, m_TEMP[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_TEMP[i].z - m_ArraySize.z / 2f) * m_Scale, 0.1f);
         }
