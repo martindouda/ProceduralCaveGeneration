@@ -6,6 +6,8 @@ using UnityEngine;
 [RequireComponent(typeof(MeshFilter))]
 public class MeshGenerator : MonoBehaviour
 {
+    [SerializeField] private GameObject m_WaterMeshObject;
+
     private Mesh m_Mesh;
     
     private List<Vector3> m_Vertices;
@@ -116,21 +118,19 @@ public class MeshGenerator : MonoBehaviour
             {
                 for (int x = 0; x < m_ArraySize.x; x++)
                 {
-                    int cubeIndex = 0;
-
                     float[] cubeValues = new float[]
                     {
-                        GetFromGrid(x,      y,      z + 1),
-                        GetFromGrid(x + 1,  y,      z + 1),
-                        GetFromGrid(x + 1,  y,      z),
-                        GetFromGrid(x,      y,      z),
-                        GetFromGrid(x,      y + 1,  z + 1),
-                        GetFromGrid(x + 1,  y + 1,  z + 1),
-                        GetFromGrid(x + 1,  y + 1,  z),
-                        GetFromGrid(x,      y + 1,  z),
+                        GetFromGrid(x,     y,     z + 1),
+                        GetFromGrid(x + 1, y,     z + 1),
+                        GetFromGrid(x + 1, y,     z    ),
+                        GetFromGrid(x,     y,     z    ),
+                        GetFromGrid(x,     y + 1, z + 1),
+                        GetFromGrid(x + 1, y + 1, z + 1),
+                        GetFromGrid(x + 1, y + 1, z    ),
+                        GetFromGrid(x,     y + 1, z    ),
                     };
 
-
+                    int cubeIndex = 0;
                     for (int i = 0; i < 8; i++)
                     {
                         if (cubeValues[i] >= m_Boundry) cubeIndex |= 1 << i;
@@ -188,7 +188,8 @@ public class MeshGenerator : MonoBehaviour
         return m_Grid[x + z * (m_ArraySize.x + 1) + y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)];
     }
 
-    private Vector3 GetMarchingCubesVertex(Vector3 pos, Vector3 vert0, float val0, Vector3 vert1, float val1) {
+    private Vector3 GetMarchingCubesVertex(Vector3 pos, Vector3 vert0, float val0, Vector3 vert1, float val1)
+    {
         Vector3 ret = pos + (vert0 + (m_Boundry - val0) * (vert1 - vert0) / (val1 - val0)) * m_Scale;
         return new Vector3(((int)(ret.x * 100.0f + 0.5f)) / 100.0f, ((int)(ret.y * 100.0f + 0.5f)) / 100.0f, ((int)(ret.z * 100.0f + 0.5f)) / 100.0f);
     }
@@ -451,69 +452,55 @@ public class MeshGenerator : MonoBehaviour
 
 
     private List<Vector3Int> m_Minimas = new List<Vector3Int>();
-    private List<Vector3Int> m_HighestPointsNearMinimas = new List<Vector3Int>();
     private List<Vector3Int> m_TEMP = new List<Vector3Int>();
 
     [SerializeField, Range(0, 50)] private int m_SearchHeight = 0;
 
-    struct Node
-    { 
-        public int groupId;
-        public int height;
-    }
-
     struct Group
     {
-        public int min;
-        public int max;
-
-        public int localWaterHeight;
         public int waterHeight;
         
         public Group(int min, int max, int maxWaterHeightFound=-1)
         {
-            this.max = max;
-            this.min = min;
             if (maxWaterHeightFound == -1 || maxWaterHeightFound <= min)
             {
                 this.waterHeight = Random.Range(min, max + 1);
+                return;
             }
-            else
+            if (maxWaterHeightFound > max)
             {
-                if (maxWaterHeightFound > max)
-                {
-                    this.waterHeight = maxWaterHeightFound;
-                }
-                else
-                {
-                    this.waterHeight = Random.Range(maxWaterHeightFound, max + 1);
-                }
+                this.waterHeight = maxWaterHeightFound;
+                return;
             }
-            this.localWaterHeight = waterHeight - min;
+            this.waterHeight = Random.Range(maxWaterHeightFound, max + 1);
         }
-    }   
-    
+    }
+
+
+
+    private List<Vector3> m_WaterVertices;
+    private List<int> m_WaterIndices;
+
+    Dictionary<Vector3, int> m_WaterVertexDict;
+
     public void FindLowGrounds()
     {
         m_Minimas = new List<Vector3Int>();
-        m_HighestPointsNearMinimas = new List<Vector3Int>();
         m_TEMP = new List<Vector3Int>();
+
+        m_WaterVertices = new List<Vector3>();
+        m_WaterIndices = new List<int>();
+        m_WaterVertexDict = new Dictionary<Vector3, int>();
     
         int sizeX = m_ArraySize.x + 1;
         int sizeY = m_ArraySize.y + 1;
         int sizeZ = m_ArraySize.z + 1;
         int size = sizeX * sizeY * sizeZ;
-        Node[] heights = new Node[size];
+        int[] groupIds = new int[size];
 
-        Node GetNode(int x, int y, int z) { return heights[x + z * sizeX + y * sizeX * sizeZ]; }
-        void SetNode(int x, int y, int z, int height, int groupId)
-        {
-            int i = x + z * sizeX + y * sizeX * sizeZ;
-            heights[i].height = height;
-            heights[i].groupId = groupId;
-        }
-        for (int i = 0; i < size; i++) heights[i] = new Node() { height = -1, groupId = -1 };
-
+        int GetGroupId(int x, int y, int z) { return groupIds[x + z * sizeX + y * sizeX * sizeZ]; }
+        void SetGroupId(int x, int y, int z, int groupId) { groupIds[x + z * sizeX + y * sizeX * sizeZ] = groupId; }
+        for (int i = 0; i < size; i++) groupIds[i] = -1;
 
         int[,] neighboursOnLevel = new int[,] { { -1, -1 }, { -1, 0 }, { -1, 1 }, { 0, -1 }, { 0, 1 }, { 1, -1 }, { 1, 0 }, { 1, 1 } };
 
@@ -524,30 +511,10 @@ public class MeshGenerator : MonoBehaviour
             {
                 for (int x = 0; x <= m_ArraySize.x; x++)
                 {
-                    if (GetFromGrid(x, y, z) <= m_Boundry && GetNode(x, y, z).height == -1)
+                    if (GetFromGrid(x, y, z) <= m_Boundry && GetGroupId(x, y, z) == -1)
                     {
                         ExploreGroup(new Vector3Int(x, y, z));
                         m_Minimas.Add(new Vector3Int(x, y, z));
-                    }
-                    /*if (GetNode(x, y, z).height == m_SearchHeight)
-                    {
-                        m_TEMP.Add(new Vector3Int(x, y, z));
-                    }*/
-                }
-            }
-        }
-        for (int y = 0; y < m_ArraySize.y; y++)
-        {
-            for (int z = 0; z <= m_ArraySize.z; z++)
-            {
-                for (int x = 0; x <= m_ArraySize.x; x++)
-                {
-                    Node node = GetNode(x, y, z);
-                    if (node.height == -1) continue;
-
-                    if (node.height == groups[node.groupId].localWaterHeight)
-                    {
-                        m_TEMP.Add(new Vector3Int(x, y, z));
                     }
                 }
             }
@@ -561,28 +528,27 @@ public class MeshGenerator : MonoBehaviour
             int maxHeight = start.y;
             int maxWaterHeightFound = -1;
             q.Enqueue(start);
-            SetNode(start.x, start.y, start.z, 0, groupId);
+            SetGroupId(start.x, start.y, start.z, groupId);
             
             while (q.Count > 0)
             {
                 while (q.Count > 0)
                 {
                     Vector3Int v = q.Dequeue();
-                    int vHeight = GetNode(v.x, v.y, v.z).height;
 
                     Vector3Int above = new Vector3Int(v.x, v.y + 1, v.z);
                     if (v.y < m_ArraySize.y && GetFromGrid(above.x, above.y, above.z) <= m_Boundry)
                     {
-                        Node node = GetNode(above.x, above.y, above.z);
-                        if (node.height == -1)
+                        int id = GetGroupId(above.x, above.y, above.z);
+                        if (id == -1)
                         {
                             if (above.y > maxHeight) maxHeight = above.y;
                             aboveQ.Enqueue(above);
-                            SetNode(above.x, above.y, above.z, vHeight + 1, groupId);
+                            SetGroupId(above.x, above.y, above.z, groupId);
                         } 
                         else
                         {
-                            int waterHeight = groups[node.groupId].waterHeight;
+                            int waterHeight = groups[id].waterHeight;
                             if (maxWaterHeightFound < waterHeight) maxWaterHeightFound = waterHeight;
                         }
                     }
@@ -590,10 +556,10 @@ public class MeshGenerator : MonoBehaviour
                     for (int i = 0; i < 8; i++)
                     {
                         Vector3Int next = new Vector3Int(v.x + neighboursOnLevel[i, 0], v.y, v.z + neighboursOnLevel[i, 1]);
-                        if (next.x < 0 || next.x >= m_ArraySize.x || next.z < 0 || next.z >= m_ArraySize.z || GetFromGrid(next.x, next.y, next.z) > m_Boundry || GetNode(next.x, next.y, next.z).height != -1) continue;
+                        if (next.x < 0 || next.x >= m_ArraySize.x || next.z < 0 || next.z >= m_ArraySize.z || GetFromGrid(next.x, next.y, next.z) > m_Boundry || GetGroupId(next.x, next.y, next.z) != -1) continue;
 
                         q.Enqueue(next);
-                        SetNode(next.x, next.y, next.z, vHeight, groupId);
+                        SetGroupId(next.x, next.y, next.z, groupId);
                     }
                 }
                 q = aboveQ;
@@ -602,14 +568,132 @@ public class MeshGenerator : MonoBehaviour
 
             groups.Add(new Group(start.y, maxHeight, maxWaterHeightFound));
         }
+
+        List<int> slices = new List<int>();
+        HashSet<Vector3Int> waterSurfacePointsSet = new HashSet<Vector3Int>();
+        for (int y = 0; y < m_ArraySize.y; y++)
+        {
+            bool containsPancake = false;
+            for (int z = 0; z <= m_ArraySize.z; z++)
+            {
+                for (int x = 0; x <= m_ArraySize.x; x++)
+                {
+                    int groupId = GetGroupId(x, y, z);
+                    if (groupId == -1 || y != groups[groupId].waterHeight) continue;
+
+                    Vector3Int v = new Vector3Int(x, y, z);
+                    if (!waterSurfacePointsSet.Contains(v))
+                    {
+                        containsPancake = true;
+                        m_TEMP.Add(v);
+                        waterSurfacePointsSet.Add(v);
+                    }
+                    for (int i = 0; i < 8; i++)
+                    {
+                        Vector3Int next = new Vector3Int(x + neighboursOnLevel[i, 0], y, z + neighboursOnLevel[i, 1]);
+                        if (!waterSurfacePointsSet.Contains(next))
+                        {
+                            m_TEMP.Add(next);
+                            waterSurfacePointsSet.Add(v);
+                            //SetGroupId(next.x, next.y, next.z, groupId);
+                        }
+                    }
+                }
+            }
+            if (!containsPancake) continue;
+
+            slices.Add(y);
+        }
+
+        foreach (int y in slices)
+        {
+            for (int z = 0; z < m_ArraySize.z; z++)
+            {
+                for (int x = 0; x < m_ArraySize.x; x++)
+                {
+                    float GetSquareValue(int x, int y, int z)
+                    {
+                        int groupId = GetGroupId(x, y, z);
+                        return (groupId == -1 || y != groups[groupId].waterHeight) ? 0.5f : 0.0f;
+                    }
+                    float[] squareValues = new float[]
+                    {
+                        GetSquareValue(x + 1, y, z    ),
+                        GetSquareValue(x + 1, y, z + 1),
+                        GetSquareValue(x    , y, z + 1),
+                        GetSquareValue(x    , y, z    ),
+                    };
+
+                    int squareIndex = 0;
+                    for (int i = 0; i < 4; i++)
+                    {
+                        if (squareValues[i] < m_Boundry) squareIndex |= 1 << i;
+                    }
+                    //if (squareValues[0] != 0 || squareValues[1] != 0 || squareValues[2] != 0 || squareValues[3] != 0) Debug.Log(string.Format("{0} {1} {2} {3} : {4}", squareValues[0], squareValues[1], squareValues[2], squareValues[3], squareIndex));
+
+                    int[] edges = MarchingSquaresTables.triTable[squareIndex];
+                    for (int i = 0; edges[i] != -1; i += 3)
+                    {
+                        int a0 = MarchingSquaresTables.edgeConnections[edges[i]][0];
+                        int a1 = MarchingSquaresTables.edgeConnections[edges[i]][1];
+
+                        int b0 = MarchingSquaresTables.edgeConnections[edges[i + 1]][0];
+                        int b1 = MarchingSquaresTables.edgeConnections[edges[i + 1]][1];
+
+                        int c0 = MarchingSquaresTables.edgeConnections[edges[i + 2]][0];
+                        int c1 = MarchingSquaresTables.edgeConnections[edges[i + 2]][1];
+
+                        Vector3 pos = new Vector3(x - m_ArraySize.x / 2f, y - Mathf.CeilToInt(m_PrimitiveRadius), z - m_ArraySize.z / 2f) * m_Scale;
+
+                        Vector3 vertexPos1 = GetMarchingSquaresVertex(pos, MarchingSquaresTables.squareCorners[a0], squareValues[a0], MarchingSquaresTables.squareCorners[a1], squareValues[a1]);
+                        Vector3 vertexPos2 = GetMarchingSquaresVertex(pos, MarchingSquaresTables.squareCorners[c0], squareValues[c0], MarchingSquaresTables.squareCorners[c1], squareValues[c1]);
+                        Vector3 vertexPos3 = GetMarchingSquaresVertex(pos, MarchingSquaresTables.squareCorners[b0], squareValues[b0], MarchingSquaresTables.squareCorners[b1], squareValues[b1]);
+
+                        AddSquaresVertex(vertexPos1);
+                        AddSquaresVertex(vertexPos2);
+                        AddSquaresVertex(vertexPos3);
+                    }
+                }
+            }
+        }
+        MeshFilter meshFilter = m_WaterMeshObject.GetComponent<MeshFilter>();
+        Mesh mesh = new Mesh();
+        mesh.SetVertices(m_WaterVertices);
+        mesh.SetTriangles(m_WaterIndices, 0);
+        meshFilter.mesh = mesh;
+    }
+    private Vector3 GetMarchingSquaresVertex(Vector3 pos, Vector3 vert0, float val0, Vector3 vert1, float val1)
+    {
+        Vector3 ret;
+        if (val0 == val1)
+        {
+            ret = pos + vert0 * m_Scale;
+        }
+        else
+        {
+            ret = pos + (vert0 + (m_Boundry - val0) * (vert1 - vert0) / (val1 - val0)) * m_Scale;
+        }
+        return new Vector3(((int)(ret.x * 100.0f + 0.5f)) / 100.0f, ((int)(ret.y * 100.0f + 0.5f)) / 100.0f, ((int)(ret.z * 100.0f + 0.5f)) / 100.0f);
+    }
+
+    private void AddSquaresVertex(Vector3 pos)
+    {
+        if (m_WaterVertexDict.ContainsKey(pos))
+        {
+            m_WaterIndices.Add(m_WaterVertexDict[pos]);
+            return;
+        }
+        m_WaterVertexDict[pos] = m_WaterVertices.Count;
+        m_WaterIndices.Add(m_WaterVertices.Count);
+        m_WaterVertices.Add(pos);
     }
 
     private void OnDrawGizmos()
     {
-        for (int i = 0; i < Mathf.Min(m_Minimas.Count, 2000); i++)
+        /*for (int i = 0; i < Mathf.Min(m_Minimas.Count, 2000); i++)
         {
             Gizmos.DrawSphere(new Vector3(m_Minimas[i].x - m_ArraySize.x / 2f, m_Minimas[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_Minimas[i].z - m_ArraySize.z / 2f) * m_Scale, 1.0f);
-        }
+        }*/
         for (int i = 0; i < Mathf.Min(m_TEMP.Count, 10000); i++)
         {
             Gizmos.DrawSphere(new Vector3(m_TEMP[i].x - m_ArraySize.x / 2f, m_TEMP[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_TEMP[i].z - m_ArraySize.z / 2f) * m_Scale, 0.1f);
