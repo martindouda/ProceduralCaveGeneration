@@ -24,6 +24,7 @@ public class MeshGenerator : MonoBehaviour
     private float m_EditPower = 1.0f;
     private float m_PrimitiveRadius;
     private float m_DiscRadius;
+    private float m_CeilingAngleLimit;
 
     Dictionary<Vector3, int> m_VertexDict;
 
@@ -34,9 +35,8 @@ public class MeshGenerator : MonoBehaviour
     [SerializeField] private Transform m_SpeleoStrawPrefab;
     [SerializeField] private Transform m_TopSpeleoParent;
     [SerializeField] private Transform m_BotSpeleoParent;
-    [SerializeField, Range(1.0f, 45.0f)] private float m_AngleLimit = 3.0f;
 
-    public void Generate(Vector3 sizeFloat, float scale, float boundry, float editPower, float primitiveRadius, float discRadius)
+    public void Generate(Vector3 sizeFloat, float scale, float boundry, float editPower, float primitiveRadius, float discRadius, float ceilingAngleLimit)
     {
         Vector3Int size = new Vector3Int((int)(sizeFloat.x / scale), (int)(sizeFloat.y / scale), (int)(sizeFloat.z / scale));
         m_Size = size;
@@ -46,6 +46,7 @@ public class MeshGenerator : MonoBehaviour
         m_EditPower = editPower;
         m_PrimitiveRadius = primitiveRadius / scale;
         m_DiscRadius = discRadius / scale;
+        m_CeilingAngleLimit = ceilingAngleLimit;
         m_Mesh = new Mesh();
         m_Mesh.name = "CaveMesh";
         GetComponent<MeshFilter>().mesh = m_Mesh;
@@ -158,7 +159,7 @@ public class MeshGenerator : MonoBehaviour
 
                         Vector3 normal = Vector3.Cross(vertexPos2 - vertexPos1, vertexPos3 - vertexPos1).normalized;
 
-                        if (Vector3.Dot(normal, Vector3.down) > Mathf.Cos(Mathf.Deg2Rad * m_AngleLimit))    
+                        if (Vector3.Dot(normal, Vector3.down) > Mathf.Cos(Mathf.Deg2Rad * m_CeilingAngleLimit))    
                         {
                             float u = Random.value;
                             float v = Random.value;
@@ -255,7 +256,6 @@ public class MeshGenerator : MonoBehaviour
             DestroyImmediate(m_BotSpeleoParent.GetChild(0).gameObject);
         }
     }
-
     [SerializeField, Range(0.0f, 1.0f)] private float m_StalagmiteHeightCoefficient = 0.5f;
     [SerializeField, Range(1.0f, 2.0f)] private float m_StalagmiteRadiusCoefficient = 1.2f;
 
@@ -273,7 +273,7 @@ public class MeshGenerator : MonoBehaviour
         ClearTopSpeleo();
         ClearBotSpeleo();
 
-        Vector3 upCorrection = Vector3.up * Mathf.Sin(m_AngleLimit) * m_Radius * (1 + m_RadiusFluctuation);
+        Vector3 upCorrection = Vector3.up * Mathf.Sin(m_CeilingAngleLimit) * m_Radius * (1 + m_RadiusFluctuation);
         foreach (var pos in m_TopSpeleosLocations)
         {
             if (Random.value > spawnProbability) continue;
@@ -357,7 +357,7 @@ public class MeshGenerator : MonoBehaviour
 
             if (meshCollider != null)
             {
-                if (Vector3.Dot(hit.normal, Vector3.up) < Mathf.Cos(Mathf.Deg2Rad * m_AngleLimit)) return ret;
+                if (Vector3.Dot(hit.normal, Vector3.up) < Mathf.Cos(Mathf.Deg2Rad * m_CeilingAngleLimit)) return ret;
 
                 ret.generate = true;
                 ret.pos = hit.point;
@@ -460,11 +460,11 @@ public class MeshGenerator : MonoBehaviour
     {
         public int waterHeight;
         
-        public Group(int min, int max, int maxWaterHeightFound=-1)
+        public Group(int min, int max, int maxWaterHeightFound, float groundWaterLevelHeight)
         {
             if (maxWaterHeightFound == -1 || maxWaterHeightFound <= min)
             {
-                this.waterHeight = Random.Range(min, max + 1);
+                this.waterHeight = Mathf.Clamp(Random.Range(min, max + 1), (int)groundWaterLevelHeight, max + 1);
                 return;
             }
             if (maxWaterHeightFound > max)
@@ -472,7 +472,7 @@ public class MeshGenerator : MonoBehaviour
                 this.waterHeight = maxWaterHeightFound;
                 return;
             }
-            this.waterHeight = Random.Range(maxWaterHeightFound, max + 1);
+            this.waterHeight = Mathf.Clamp(Random.Range(maxWaterHeightFound, max + 1), (int)groundWaterLevelHeight, max + 1);
         }
     }
 
@@ -483,7 +483,7 @@ public class MeshGenerator : MonoBehaviour
 
     Dictionary<Vector3, int> m_WaterVertexDict;
 
-    public void FindLowGrounds()
+    public void FindLowGrounds(float groundWaterLevelHeight)
     {
         m_Minimas = new List<Vector3Int>();
         m_TEMP = new List<Vector3Int>();
@@ -566,7 +566,7 @@ public class MeshGenerator : MonoBehaviour
                 aboveQ = new Queue<Vector3Int>();
             }
 
-            groups.Add(new Group(start.y, maxHeight, maxWaterHeightFound));
+            groups.Add(new Group(start.y, maxHeight, maxWaterHeightFound, groundWaterLevelHeight));
         }
 
         List<int> slices = new List<int>();
@@ -686,6 +686,11 @@ public class MeshGenerator : MonoBehaviour
         m_WaterVertexDict[pos] = m_WaterVertices.Count;
         m_WaterIndices.Add(m_WaterVertices.Count);
         m_WaterVertices.Add(pos);
+    }
+
+    public void RenderWater(bool renderMesh)
+    {
+        m_WaterMeshObject.SetActive(renderMesh);
     }
 
     private void OnDrawGizmos()

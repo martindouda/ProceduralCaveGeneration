@@ -50,11 +50,16 @@ public class CaveGenerator : MonoBehaviour
     [Space(20), Header("MESH - MARCHING CUBES")]
     [SerializeField, Range(0.1f, 5.0f)] private float m_MarchingCubesScale = 1.0f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_MarchingCubesBoundry = 0.5f;
-    [Space(20), Header("SPELEOTHEMS")]
+    [Space(20), Header("MESH - SPELEOTHEMS")]
     [SerializeField, Range(0.0f, 1.0f)] private float m_StalactiteSpawnProbability = 0.1f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_StalagmiteBelowStalactiteSpawnProbability = 0.5f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_StrawProbability = 0.5f;
     [SerializeField, Range(0.1f, 5.0f)] private float m_SpeleothemsMaxHeight = 2.0f;
+    [SerializeField, Range(1.0f,45.0f)] private float m_CeilingAngleLimit = 15.0f;
+    [Space(20), Header("MESH - WATER")]
+    [SerializeField] private float m_GroundWaterLevelHeight = 15.0f;
+
+    [SerializeField]
 
     // Poisson spheres
     private PoissonSpheres m_PoissonSpheres;
@@ -180,16 +185,12 @@ public class CaveGenerator : MonoBehaviour
     public void GenerateMesh()
     { 
         m_SweepingPrimitiveGenerator.LoadPixels();
-        m_MeshGenerator.Generate(m_Size, m_MarchingCubesScale, m_MarchingCubesBoundry, m_DiscPower, m_PrimitiveRadius, m_DiscRadius);
+        m_MeshGenerator.Generate(m_Size, m_MarchingCubesScale, m_MarchingCubesBoundry, m_DiscPower, m_PrimitiveRadius, m_DiscRadius, m_CeilingAngleLimit);
         m_MeshGenerator.SweepPrimitives(m_Paths, m_TerrainEditsPerUnit, m_SweepingPrimitiveGenerator);
         m_MeshGenerator.CreateShape();
         m_MeshGenerator.UpdateMesh();
     }
 
-    public void GenerateStalactites()
-    {
-        m_MeshGenerator.GenerateSpeleothems(m_StalactiteSpawnProbability, m_StalagmiteBelowStalactiteSpawnProbability, m_StrawProbability, m_SpeleothemsMaxHeight);
-    }
 
     // Generates additional tunnels spreading from the paths.
     private void GenerateBranches()
@@ -504,6 +505,16 @@ public class CaveGenerator : MonoBehaviour
         if (!m_Paths.Contains(dict[startPoint][endPoint])) m_Paths.Add(dict[startPoint][endPoint]);
     }
 
+    public void GenerateStalactites()
+    {
+        m_MeshGenerator.GenerateSpeleothems(m_StalactiteSpawnProbability, m_StalagmiteBelowStalactiteSpawnProbability, m_StrawProbability, m_SpeleothemsMaxHeight);
+    }
+
+    public void GenerateWater()
+    {
+        m_MeshGenerator.FindLowGrounds((int)(m_GroundWaterLevelHeight / m_MarchingCubesScale));
+    }
+
     public bool CheckSpheresDistributionReady()
     {
         if (m_PoissonSpheres != null) return true;
@@ -622,8 +633,10 @@ public class CaveGenerator : MonoBehaviour
         m_StalagmitesParent.gameObject.SetActive(value);
     }
 
-    internal void GenerateWater()
+    public void RenderWater(bool renderWater)
     {
-        m_MeshGenerator.FindLowGrounds();
+        m_MeshGenerator.RenderWater(renderWater);
     }
+
+
 }

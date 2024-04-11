@@ -10,6 +10,7 @@ public class CaveGeneratorEditor : Editor
     private static bool m_RenderPathsToggle = false;
     private static bool m_RenderMeshToggle = true;
     private static bool m_RenderSpeleothems = true;
+    private static bool m_RenderWater = true;
 
     private static int m_SelectedVisualizationOption = 0;
     private static string[] m_VisualizationOptions = { "Disabled", "Points On Path", "Spheres On Path", "All Spheres" };
@@ -135,10 +136,20 @@ public class CaveGeneratorEditor : Editor
         }
         { 
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Render Render Speleothems", GUILayout.Width(200));
+            EditorGUILayout.LabelField("Render Speleothems", GUILayout.Width(200));
             if (m_RenderSpeleothems != (m_RenderSpeleothems = EditorGUILayout.Toggle(m_RenderSpeleothems)))
             {
                 caveGenerator.RenderSpeleothems(m_RenderSpeleothems);   
+            }
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+        }
+        { 
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Render Water", GUILayout.Width(200));
+            if (m_RenderWater != (m_RenderWater = EditorGUILayout.Toggle(m_RenderWater)))
+            {
+                caveGenerator.RenderWater(m_RenderWater);   
             }
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
