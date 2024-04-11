@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
+using UnityEditor;
 using static PoissonSpheres;
 
 [ExecuteInEditMode, RequireComponent(typeof(SpherePool))]
@@ -105,11 +106,24 @@ public class CaveGenerator : MonoBehaviour
     // Draw the borders of the cave and the horizons.
     private void OnDrawGizmos()
     {
+        
         Gizmos.color = Color.cyan;
         for (int i = 0; i < m_HorizonsParent.childCount; i++)
         {
-            Gizmos.DrawSphere(m_HorizonsParent.GetChild(i).position, 1.0f);
+            if (Selection.activeGameObject == m_HorizonsParent.GetChild(i).gameObject)
+            {
+                Vector3 size = m_Size / 2;
+                for (int j = 0; j < m_HorizonsParent.childCount; j++)
+                {
+                    float y = m_HorizonsParent.GetChild(j).position.y;
+                    Gizmos.DrawLine(new Vector3(-size.x, y, -size.z) + transform.position, new Vector3(size.x, y, size.z) + transform.position);
+                    Gizmos.DrawLine(new Vector3(size.x, y, -size.z) + transform.position, new Vector3(-size.x, y, size.z) + transform.position);
+                }
+                break;
+            }
         }
+        
+        Gizmos.color = Color.green;
         Gizmos.DrawWireCube(new Vector3(transform.position.x, transform.position.y + m_Size.y / 2, transform.position.z), m_Size);
     }
 

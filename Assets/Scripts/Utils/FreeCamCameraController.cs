@@ -11,6 +11,8 @@ public class FreeCamCameraController : MonoBehaviour
     [SerializeField] private float m_LookSpeed = 1.0f;
     [SerializeField] private float m_SpotLightLerpCoef = 0.06f;
 
+
+    private bool m_SpotLightFixed = false;
     private bool m_RotationEnabled = true;
     private float m_RotationX = 0.0f;
 
@@ -38,6 +40,10 @@ public class FreeCamCameraController : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F))
         {
             m_SpotLight.gameObject.SetActive(!m_SpotLight.gameObject.activeSelf);
+        }
+        if (Input.GetKeyDown(KeyCode.V))
+        {
+            m_SpotLightFixed = !m_SpotLightFixed;
         }
 
 
@@ -72,14 +78,18 @@ public class FreeCamCameraController : MonoBehaviour
             speedModified *= 2.0f;
         }
         transform.position += moveVector.normalized * speedModified * Time.deltaTime;
-
+                    
+        if (!m_SpotLightFixed)
+        {
+            m_SpotLight.position = transform.position;
+            m_SpotLight.rotation = Quaternion.Slerp(m_SpotLight.rotation, Camera.main.transform.rotation, m_SpotLightLerpCoef);
+        }
+        
         if (!m_RotationEnabled) return;
 
         m_RotationX -= Input.GetAxis("Mouse Y") * m_LookSpeed;
         m_RotationX = Mathf.Clamp(m_RotationX, -90.0f, 90.0f);
         Camera.main.transform.localRotation = Quaternion.Euler(m_RotationX, 0.0f, 0.0f);
         transform.rotation *= Quaternion.Euler(0, Input.GetAxis("Mouse X") * m_LookSpeed, 0.0f);
-        m_SpotLight.position = transform.position;
-        m_SpotLight.rotation = Quaternion.Slerp(m_SpotLight.rotation, Camera.main.transform.rotation, m_SpotLightLerpCoef);
     }
 }

@@ -86,6 +86,7 @@ Material:
     - _CullModeForward: 2
     - _DEPTH: 1
     - _Depth: -0.09
+    - _DepthAlpha: -6.65
     - _DepthOffsetEnable: 0
     - _DoubleSidedEnable: 0
     - _DoubleSidedGIMode: 0
@@ -120,6 +121,7 @@ Material:
     - _StencilWriteMaskGBuffer: 15
     - _StencilWriteMaskMV: 41
     - _Strength: 0.57
+    - _StrengthAlpha: 0.1
     - _SupportDecals: 1
     - _SurfaceType: 1
     - _TEST: 36.18
@@ -135,10 +137,11 @@ Material:
     - _ZTestGBuffer: 4
     - _ZTestTransparent: 4
     - _ZWrite: 0
-    - _reflectionMult: 0.27
-    - _reflectionPower: 3.5
+    - _alphaMult: 2.528
+    - _reflectionMult: 0.979
+    - _reflectionPower: 6.91
     m_Colors:
-    - _Deep: {r: 0.4246314, g: 0.4709648, b: 0.54509807, a: 1}
+    - _Deep: {r: 0.6495539, g: 0.72172654, b: 0.83599997, a: 1}
     - _DoubleSidedConstants: {r: 1, g: 1, b: -1, a: 0}
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
     - _Shallow: {r: 1, g: 1, b: 1, a: 1}

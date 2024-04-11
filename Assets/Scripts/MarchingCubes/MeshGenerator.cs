@@ -36,16 +36,16 @@ public class MeshGenerator : MonoBehaviour
     [SerializeField] private Transform m_BotSpeleoParent;
     [SerializeField, Range(1.0f, 45.0f)] private float m_AngleLimit = 3.0f;
 
-    public void Generate(Vector3 sizeFloat, float scale, float boundry, float editPower, float primitiveRadius, float discRaius)
+    public void Generate(Vector3 sizeFloat, float scale, float boundry, float editPower, float primitiveRadius, float discRadius)
     {
         Vector3Int size = new Vector3Int((int)(sizeFloat.x / scale), (int)(sizeFloat.y / scale), (int)(sizeFloat.z / scale));
         m_Size = size;
-        m_ArraySize = size + Vector3Int.one * Mathf.CeilToInt(primitiveRadius / scale) * 2;
+        m_ArraySize = size + Vector3Int.one * Mathf.CeilToInt(primitiveRadius / scale + discRadius / scale) * 2;
         m_Scale = scale;
         m_Boundry = boundry;
         m_EditPower = editPower;
         m_PrimitiveRadius = primitiveRadius / scale;
-        m_DiscRadius = discRaius / scale;
+        m_DiscRadius = discRadius / scale;
         m_Mesh = new Mesh();
         m_Mesh.name = "CaveMesh";
         GetComponent<MeshFilter>().mesh = m_Mesh;
@@ -694,9 +694,9 @@ public class MeshGenerator : MonoBehaviour
         {
             Gizmos.DrawSphere(new Vector3(m_Minimas[i].x - m_ArraySize.x / 2f, m_Minimas[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_Minimas[i].z - m_ArraySize.z / 2f) * m_Scale, 1.0f);
         }*/
-        for (int i = 0; i < Mathf.Min(m_TEMP.Count, 10000); i++)
+        /*for (int i = 0; i < Mathf.Min(m_TEMP.Count, 10000); i++)
         {
             Gizmos.DrawSphere(new Vector3(m_TEMP[i].x - m_ArraySize.x / 2f, m_TEMP[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_TEMP[i].z - m_ArraySize.z / 2f) * m_Scale, 0.1f);
-        }
+        }*/
     }
 }

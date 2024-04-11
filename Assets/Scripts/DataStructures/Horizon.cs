@@ -20,4 +20,15 @@ public class Horizon : MonoBehaviour, IHeapItem<Horizon>
         Horizon other = obj as Horizon;
         return other.Height.CompareTo(Height);
     }
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawSphere(transform.position, 1.0f);
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.blue;
+        Gizmos.DrawSphere(transform.position, 1.0f);
+    }
 }

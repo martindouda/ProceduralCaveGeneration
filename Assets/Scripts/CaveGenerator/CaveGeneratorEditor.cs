@@ -183,9 +183,27 @@ public class CaveGeneratorEditor : Editor
         {
             EditorGUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button("Delete", GUILayout.Width(200)))
+            if (GUILayout.Button("Generate Everything", GUILayout.Width(200)))
             {
-                caveGenerator.Pool.DeleteSpheres();
+                float time = Time.realtimeSinceStartup;
+                caveGenerator.GeneratePoissonSpheres();
+                m_GenerateSpheresDuration = Time.realtimeSinceStartup - time;
+
+                time = Time.realtimeSinceStartup;
+                caveGenerator.GeneratePaths();
+                m_GeneratePathsDuration = Time.realtimeSinceStartup - time; 
+
+                time = Time.realtimeSinceStartup;
+                caveGenerator.GenerateMesh();
+                m_GenerateMeshDuration = Time.realtimeSinceStartup - time;
+
+                time = Time.realtimeSinceStartup;
+                caveGenerator.GenerateStalactites();
+                m_GenerateSpeleothemsDuration = Time.realtimeSinceStartup - time;
+
+                time = Time.realtimeSinceStartup;
+                caveGenerator.GenerateWater();
+                m_GenerateWaterDuration = Time.realtimeSinceStartup - time;
             }
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
