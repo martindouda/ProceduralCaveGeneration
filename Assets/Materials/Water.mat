@@ -80,9 +80,11 @@ Material:
     - _AlphaDstBlend: 10
     - _AlphaSrcBlend: 1
     - _BlendMode: 0
+    - _CONST: 0.63
     - _ConservativeDepthOffsetEnable: 0
     - _CullMode: 2
     - _CullModeForward: 2
+    - _DEPTH: 1
     - _Depth: -0.09
     - _DepthOffsetEnable: 0
     - _DoubleSidedEnable: 0
@@ -92,9 +94,14 @@ Material:
     - _EnableBlendModePreserveSpecularLighting: 1
     - _EnableFogOnTransparent: 1
     - _ExcludeFromTUAndAA: 0
-    - _Normal1Scale: 0.46
-    - _Normal1Speed: 0.05
+    - _Normal1Scale: 1.23
+    - _Normal1Speed: 0.1
+    - _Normal1Strength: 1.36
+    - _Normal2Scale: 1.51
+    - _Normal2Speed: 0.24
+    - _Normal2Strength: 4.42
     - _OpaqueCullMode: 2
+    - _POWER: 2.68
     - _RayTracing: 0
     - _ReceivesSSR: 1
     - _ReceivesSSRTransparent: 0
@@ -128,9 +135,11 @@ Material:
     - _ZTestGBuffer: 4
     - _ZTestTransparent: 4
     - _ZWrite: 0
+    - _reflectionMult: 0.27
+    - _reflectionPower: 3.5
     m_Colors:
-    - _Deep: {r: 0, g: 0.4666667, b: 1, a: 1}
+    - _Deep: {r: 0.4246314, g: 0.4709648, b: 0.54509807, a: 1}
     - _DoubleSidedConstants: {r: 1, g: 1, b: -1, a: 0}
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
-    - _Shallow: {r: 0.28400004, g: 0.7315072, b: 1, a: 1}
+    - _Shallow: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
