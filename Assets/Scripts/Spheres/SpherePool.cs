@@ -24,6 +24,8 @@ public class SpherePool : MonoBehaviour
             Transform child = m_SpheresParent.GetChild(i);
             DestroyImmediate(child.gameObject);
         }
+        m_Spheres = new List<Transform>();
+        IncreaseCapacity();
     }
 
     // Increases the number of available spheres.

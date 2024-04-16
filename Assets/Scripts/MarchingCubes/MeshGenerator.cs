@@ -6,7 +6,6 @@ using UnityEngine;
 [RequireComponent(typeof(MeshFilter))]
 public class MeshGenerator : MonoBehaviour
 {
-    [SerializeField] private GameObject m_WaterMeshObject;
 
     private Mesh m_Mesh;
     
@@ -36,6 +35,7 @@ public class MeshGenerator : MonoBehaviour
     [SerializeField] private Transform m_TopSpeleoParent;
     [SerializeField] private Transform m_BotSpeleoParent;
 
+    [SerializeField] private Transform m_WaterMeshObject;
     public void Generate(Vector3 sizeFloat, float scale, float boundry, float editPower, float primitiveRadius, float discRadius, float ceilingAngleLimit)
     {
         Vector3Int size = new Vector3Int((int)(sizeFloat.x / scale), (int)(sizeFloat.y / scale), (int)(sizeFloat.z / scale));
@@ -63,7 +63,7 @@ public class MeshGenerator : MonoBehaviour
     private void CreateGrid()
     {
         m_Grid = new float[(m_ArraySize.x + 1) * (m_ArraySize.z + 1) * (m_ArraySize.y + 1)];
-        for (int y = 0; y < m_ArraySize.y; y++)
+        for (int y = 0; y <= m_ArraySize.y; y++)
         {
             for (int z = 0; z <= m_ArraySize.z; z++)
             {
@@ -690,7 +690,7 @@ public class MeshGenerator : MonoBehaviour
 
     public void RenderWater(bool renderMesh)
     {
-        m_WaterMeshObject.SetActive(renderMesh);
+        m_WaterMeshObject.gameObject.SetActive(renderMesh);
     }
 
     private void OnDrawGizmos()

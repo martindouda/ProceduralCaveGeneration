@@ -65,11 +65,11 @@ public class FreeCamCameraController : MonoBehaviour
         {
             moveVector -= Camera.main.transform.right;
         }
-        if (Input.GetKey(KeyCode.Space))
+        if (Input.GetKey(KeyCode.E))
         {
             moveVector += Vector3.up;
         }
-        if (Input.GetKey(KeyCode.LeftShift))
+        if (Input.GetKey(KeyCode.Q))
         {
             moveVector -= Vector3.up;
         }

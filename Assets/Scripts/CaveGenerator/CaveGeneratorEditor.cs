@@ -52,7 +52,7 @@ public class CaveGeneratorEditor : Editor
 
 
         GUILayout.Space(20);
-        GUILayout.Label("CUSTOM EDITOR OPTIONS");
+        GUILayout.Label("RENDERING OPTIONS");
         {
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("Render Poisson Spheres", GUILayout.Width(200));

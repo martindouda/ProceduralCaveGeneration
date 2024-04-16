@@ -50,14 +50,14 @@ public class CaveGenerator : MonoBehaviour
     [Space(20), Header("MESH - MARCHING CUBES")]
     [SerializeField, Range(0.1f, 5.0f)] private float m_MarchingCubesScale = 1.0f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_MarchingCubesBoundry = 0.5f;
-    [Space(20), Header("MESH - SPELEOTHEMS")]
+    [Space(20), Header("SPELEOTHEMS")]
     [SerializeField, Range(0.0f, 1.0f)] private float m_StalactiteSpawnProbability = 0.1f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_StalagmiteBelowStalactiteSpawnProbability = 0.5f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_StrawProbability = 0.5f;
     [SerializeField, Range(0.1f, 5.0f)] private float m_SpeleothemsMaxHeight = 2.0f;
     [SerializeField, Range(1.0f,45.0f)] private float m_CeilingAngleLimit = 15.0f;
-    [Space(20), Header("MESH - WATER")]
-    [SerializeField] private float m_GroundWaterLevelHeight = 15.0f;
+    [Space(20), Header("WATER")]
+    [SerializeField, Range(1.0f, 100.0f)] private float m_GroundWaterLevelHeight = 15.0f;
 
     [SerializeField]
 
@@ -79,16 +79,9 @@ public class CaveGenerator : MonoBehaviour
     // Mesh generator
     private MeshGenerator m_MeshGenerator;
 
-
     [HideInInspector] public float GenerationTime = 0.0f;
     [HideInInspector] public float VisualizationTime = 0.0f;
 
-    // Clean up after previous cave.
-    private void Start()
-    {
-        InitializeVariables();
-        m_SpherePool.CleanUpSpheresOnSceneLoad();
-    }
 
     // Initializes the variables.
     private void InitializeVariables()
@@ -98,6 +91,7 @@ public class CaveGenerator : MonoBehaviour
         m_CachedHorizonsHeights = new List<float>();
         m_Fractures = new List<Fracture>();
         m_SpherePool = GetComponent<SpherePool>();
+        m_SpherePool.CleanUpSpheresOnSceneLoad();
         m_Paths = new List<Path>();
         m_MeshGenerator = GetComponent<MeshGenerator>();
     }
