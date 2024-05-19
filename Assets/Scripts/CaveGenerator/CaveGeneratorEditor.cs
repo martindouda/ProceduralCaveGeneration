@@ -1,7 +1,17 @@
+/*
+ * Project: Procedural Generation of Cave Systems
+ * File: CaveGeneratorEditor.cs
+ * Author: Martin Douda
+ * Date: 2.5.2024
+ * Description: This files contains all the buttons and some other options visible in CaveGenerators editor. It is used to control
+ * the genration process either one by one or all at once. It is used to seperate the genration process into 5 stages: Poisson's spheres
+ * generation, paths generation, cave mesh generation, speleothems generation and cave lakes generaion.
+ */
+
 using UnityEngine;
 using UnityEditor;
 
-// Class used to add special UI elements to CaveGenerator component in unity's editor.
+// Class used to add special UI elements to CaveGenerator component in Unity's editor.
 [CustomEditor(typeof(CaveGenerator))]
 public class CaveGeneratorEditor : Editor
 {
@@ -14,7 +24,6 @@ public class CaveGeneratorEditor : Editor
 
     private static int m_SelectedVisualizationOption = 0;
     private static string[] m_VisualizationOptions = { "Disabled", "Points On Path", "Spheres On Path", "All Spheres" };
-    private static float m_TransparencySlider = 1.0f;
 
     private static float m_GenerateSpheresDuration;
     private static float m_GeneratePathsDuration;
@@ -22,37 +31,19 @@ public class CaveGeneratorEditor : Editor
     private static float m_GenerateSpeleothemsDuration;
     private static float m_GenerateWaterDuration;
 
-    private static bool m_FirstRound = true;
+    //private static bool m_FirstRound = true;
 
+
+    // ImGui style code which is automatically rendered in the CaveGenerator's inspector.
     public override void OnInspectorGUI()
     {
         DrawDefaultInspector();
 
         CaveGenerator caveGenerator = (CaveGenerator)target;
 
-        if (m_FirstRound)
-        {
-            Debug.Log("First Round");
-            m_SelectedVisualizationOption = 0;
-            m_ShowNeighbourToggle = false;
-            m_RenderPathsToggle = false;
-            m_RenderMeshToggle = true;
-
-            if (caveGenerator.CheckSpheresDistributionReady())
-            {
-                caveGenerator.RenderPoissonSpheres(m_SelectedVisualizationOption, m_ShowNeighbourToggle);
-                if (caveGenerator.CheckPathsGenerated())
-                {
-                    caveGenerator.RenderPaths(m_RenderPathsToggle);
-                }
-            }
-
-            m_FirstRound = false;
-        }
-
 
         GUILayout.Space(20);
-        GUILayout.Label("RENDERING OPTIONS");
+        GUILayout.Label("DEBUG OPTIONS");
         {
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("Render Poisson Spheres", GUILayout.Width(200));
@@ -84,14 +75,6 @@ public class CaveGeneratorEditor : Editor
                     {
                         caveGenerator.RenderPoissonSpheres(m_SelectedVisualizationOption, m_ShowNeighbourToggle);
                     }
-                }
-                GUILayout.FlexibleSpace();
-                EditorGUILayout.EndHorizontal();
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField("Sphere Transparency", GUILayout.Width(200));
-                if (m_TransparencySlider != (m_TransparencySlider = EditorGUILayout.Slider(m_TransparencySlider, 0.0f, 1.0f)))
-                {
-                    caveGenerator.SetTransparency(m_TransparencySlider);
                 }
                 GUILayout.FlexibleSpace();
                 EditorGUILayout.EndHorizontal();
@@ -168,6 +151,7 @@ public class CaveGeneratorEditor : Editor
             {
                 float time = Time.realtimeSinceStartup;
                 caveGenerator.GeneratePaths();
+                caveGenerator.RenderPaths(m_RenderPathsToggle);
                 m_GeneratePathsDuration = Time.realtimeSinceStartup - time;
             }
             if (GUILayout.Button("Generate Mesh", GUILayout.Width(buttonWidth)))
@@ -176,7 +160,7 @@ public class CaveGeneratorEditor : Editor
                 caveGenerator.GenerateMesh();
                 m_GenerateMeshDuration = Time.realtimeSinceStartup - time;
             }
-            if (GUILayout.Button("Generate Stalactites", GUILayout.Width(buttonWidth)))
+            if (GUILayout.Button("Generate Speleothems", GUILayout.Width(buttonWidth)))
             {
                 float time = Time.realtimeSinceStartup;
                 caveGenerator.GenerateStalactites();
@@ -215,6 +199,8 @@ public class CaveGeneratorEditor : Editor
                 time = Time.realtimeSinceStartup;
                 caveGenerator.GenerateWater();
                 m_GenerateWaterDuration = Time.realtimeSinceStartup - time;
+
+                CorrectButtons(caveGenerator);
             }
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
@@ -226,5 +212,16 @@ public class CaveGeneratorEditor : Editor
             if (m_GenerateSpeleothemsDuration > 0.0f) GUILayout.Label("Speleothems took: " + m_GenerateSpeleothemsDuration * 1000.0f + "ms");
             if (m_GenerateWaterDuration > 0.0f) GUILayout.Label("Water took: " + m_GenerateWaterDuration * 1000.0f + "ms");
         }
+    }
+
+    // Updates the CaveGenerator's state based on each button's state.
+    private void CorrectButtons(CaveGenerator caveGenerator)
+    {
+        caveGenerator.RenderPoissonSpheres(m_SelectedVisualizationOption, m_ShowNeighbourToggle);
+        caveGenerator.RenderKeyPoints(m_RenderKeyPoints);
+        caveGenerator.RenderPaths(m_RenderPathsToggle);
+        caveGenerator.RenderMesh(m_RenderMeshToggle);
+        caveGenerator.RenderSpeleothems(m_RenderSpeleothems);
+        caveGenerator.RenderWater(m_RenderWater);
     }
 }

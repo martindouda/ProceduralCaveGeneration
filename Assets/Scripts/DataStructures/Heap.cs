@@ -1,3 +1,17 @@
+/*
+ * Project: Procedural Generation of Cave Systems
+ * File: Heap.cs
+ * Author: Martin Douda
+ * Date: 2.5.2024
+ * Description: /*
+ * File: Heap.cs
+ * Author: Martin Douda
+ * Date: 2.5.2024
+ * Description: This file defines a generic heap data structure. The heap class provides functionality for effectively sorting
+ * items based on specified criteria. It includes methods for adding items to the heap, removing the top item, updating items
+ * within the heap, and sorting items up and down as necessary. Additionally, it contains an interface, IHeapItem, which classes
+ * need to implement to be usable as heap items.
+ */
 using System;
 using System.Collections;
 using System.Collections.Generic;

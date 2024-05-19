@@ -1,3 +1,12 @@
+/*
+ * Project: Procedural Generation of Cave Systems
+ * File: SweepingPrimitiveGenerator.cs
+ * Author: Martin Douda
+ * Date: 2.5.2024
+ * Description: This file provides functionality for generating primitive shapes such as beds, tubes, keyholes, canyons, and passages based on
+ * specified textures. Additionally, it utilizes Poisson Discs distribution to distribute points within these shapes, considering factors such
+ * as verticality and distance from the water table.
+*/
 using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -28,6 +37,7 @@ public class SweepingPrimitiveGenerator : MonoBehaviour
     private Color[] pixels;
     
 
+    // Loads the pixels from the cave images.
     public void LoadPixels()
     {
         m_PixelsBed = m_ImageBed.GetPixels();
@@ -37,20 +47,21 @@ public class SweepingPrimitiveGenerator : MonoBehaviour
         m_PixelsPassage = m_ImagePassage.GetPixels();
     }
 
+    // Performs the Poisson Discs distribution among the pixels and returns a list of the resulting disc positions. 
     public List<Vector3> GeneratePoints(Vector3 tangent, float yNormalized, float primitiveRadius, float discRadius)
     {
         Vector2 regionSize = new Vector2(primitiveRadius, primitiveRadius) * 2.0f;
         float verticality = Mathf.Abs(tangent.y);
         if (verticality > m_VerticalityCoefficient)
         {
-            if (yNormalized > m_DistanceFromWaterTablePassage)      pixels = m_PixelsPassage;
-            else                                                    pixels = m_PixelsTube;
+            if (yNormalized > m_DistanceFromWaterTablePassage)          pixels = m_PixelsPassage;
+            else                                                        pixels = m_PixelsTube;
         }
         else
         {
-            if (yNormalized >= m_DistanceFromWaterTableCanyon) pixels = m_PixelsCanyon;
-            else if (yNormalized >= m_DistanceFromWaterTableKeyhole)     pixels = m_PixelsKeyhole;
-            else                                                    pixels = m_PixelsBed;
+            if (yNormalized >= m_DistanceFromWaterTableCanyon)          pixels = m_PixelsCanyon;
+            else if (yNormalized >= m_DistanceFromWaterTableKeyhole)    pixels = m_PixelsKeyhole;
+            else                                                        pixels = m_PixelsBed;
         }
                                                      
 
@@ -122,6 +133,7 @@ public class SweepingPrimitiveGenerator : MonoBehaviour
         return points;
     }
 
+    // Returns true if the candidate is positioned inside the area and does not collide with any existing discs.
     private bool PositionIsValid(Vector3 candidate, int[,] grid, List<Vector3> points, float discRadius)
     {
         if (candidate.x < 0.0f || m_CellSize * m_GridSize.x <= candidate.x || candidate.y < 0.0f || m_CellSize * m_GridSize.y <= candidate.y) return false;
@@ -148,6 +160,7 @@ public class SweepingPrimitiveGenerator : MonoBehaviour
         return true;
     }
 
+    // Returns true if the point is inside the black part of the selected cave image.
     private bool FitsInImage(Vector2 candidate)
     {
         int x = (int)(m_ImageBed.width * candidate.x / (m_CellSize * m_GridSize.x));

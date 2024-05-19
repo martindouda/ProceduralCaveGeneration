@@ -1,12 +1,23 @@
+/*
+ * Project: Procedural Generation of Cave Systems
+ * File: MarchingSquaresTables.cs
+ * Author: Martin Douda
+ * Date: 2.5.2024
+ * Description: Provides the necessary data for the Marching Squares algorithm for generating 2D surfaces from scalar fields.
+ * Each square in the contents grid is processed to determine its surface configuration, resulting in a mesh of triangles.
+ */
 using UnityEngine;
 
+// This class contains tables used in Marching Squares algorithm for generating 2D contours.
 public static class MarchingSquaresTables
 {
+    // Table containing edge connections for each square configuration
     public static int[][] edgeConnections = {
         new int[] {0,1}, new int[] {1,2}, new int[] {2,3}, new int[] {3,0},
         new int[] {0,0}, new int[] {1,1}, new int[] {2,2}, new int[] {3,3},
     };
 
+    // Table containing the coordinates of the corners of the square
     public static Vector3[] squareCorners = new Vector3[] {
         new Vector3(1, 0, 0),
         new Vector3(1, 0, 1),
@@ -14,6 +25,7 @@ public static class MarchingSquaresTables
         new Vector3(0, 0, 0),
     };
 
+    // Table containing the triangle configurations for each square configuration
     public static int[][] triTable = {
         new int[] {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
         new int[] { 0,  3,  4, -1, -1, -1, -1, -1, -1, -1},

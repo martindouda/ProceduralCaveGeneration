@@ -1,3 +1,13 @@
+/*
+ * Project: Procedural Generation of Cave Systems
+ * File: Path.cs
+ * Author: Martin Douda
+ * Date: 2.5.2024
+ * Description: This file defines a class for representing paths between two key points within the Unity environment. It provides
+ * functionality for calculating the path's cost and visualizing it using a Line Renderer. Additionally, the script includes methods
+ * for coloring the spheres along the path.
+*/
+
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;

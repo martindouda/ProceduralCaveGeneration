@@ -1,4 +1,10 @@
-using System.Collections;
+/*
+ * Project: Procedural Generation of Cave Systems
+ * File: SphereEditor.cs
+ * Author: Martin Douda
+ * Date: 2.5.2024
+ * Description: This file provides a functionality to the editor to visualize the sphere's neighbours on a button click.
+ */
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.TerrainTools;

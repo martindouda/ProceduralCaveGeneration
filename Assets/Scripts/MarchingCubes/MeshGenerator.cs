@@ -1,8 +1,20 @@
+/*
+ * Project: Procedural Generation of Cave Systems
+ * File: MeshGenerator.cs
+ * Author: Martin Douda
+ * Date: 2.5.2024
+ * Description: This is responsible for every visible part of the cave. It procedurally generates the cave mesh, individual speleothems
+ * and the cave lakes. During the cave mesh generation process it manages Primitive Sweeping algorithm over the volumetric array and the
+ * construction of the mesh using the Marching Cubes algorithm. Speleothems are constructed individually based on certain conditions
+ * and the cave lakes are created using the Marching Sqaures algorithm.
+ */
+
 using System.Collections.Generic;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
 
+// This class is responsible for generating every mesh in the scene. This includes cave mesh, speleothems mesh and cave lakes mesh.
 [RequireComponent(typeof(MeshFilter))]
 public class MeshGenerator : MonoBehaviour
 {
@@ -36,7 +48,8 @@ public class MeshGenerator : MonoBehaviour
     [SerializeField] private Transform m_BotSpeleoParent;
 
     [SerializeField] private Transform m_WaterMeshObject;
-    public void Generate(Vector3 sizeFloat, float scale, float boundry, float editPower, float primitiveRadius, float discRadius, float ceilingAngleLimit)
+    // Generates the cave mesh.
+    public void GenerateCaveMesh(Vector3 sizeFloat, float scale, float boundry, float editPower, float primitiveRadius, float discRadius, float ceilingAngleLimit)
     {
         Vector3Int size = new Vector3Int((int)(sizeFloat.x / scale), (int)(sizeFloat.y / scale), (int)(sizeFloat.z / scale));
         m_Size = size;
@@ -52,7 +65,7 @@ public class MeshGenerator : MonoBehaviour
         GetComponent<MeshFilter>().mesh = m_Mesh;
 
         CreateGrid();
-        CreateShape();
+        PerformMarchingCubes();
         UpdateMesh();
 
         MeshCollider meshCollider = GetComponent<MeshCollider>();
@@ -60,6 +73,7 @@ public class MeshGenerator : MonoBehaviour
         meshCollider.enabled = false;
     }
 
+    // Initializes the 3D array for the Marching Cubes algorithm.
     private void CreateGrid()
     {
         m_Grid = new float[(m_ArraySize.x + 1) * (m_ArraySize.z + 1) * (m_ArraySize.y + 1)];
@@ -75,6 +89,7 @@ public class MeshGenerator : MonoBehaviour
         }
     }
 
+    // Performes Primitive Sweeping along the paths.
     public void SweepPrimitives(List<Path> paths, float terrainEditsPerUnit, SweepingPrimitiveGenerator sweepingPrimitiveGenerator)
     {
         foreach (var path in paths)
@@ -102,7 +117,8 @@ public class MeshGenerator : MonoBehaviour
         }
     }
 
-    public void CreateShape()
+    // Builds the mesh using the Marching Cubes algorithm.
+    public void PerformMarchingCubes()
     {
         ClearTopSpeleo();
         ClearBotSpeleo();
@@ -184,17 +200,20 @@ public class MeshGenerator : MonoBehaviour
         }
     }
 
+    // Returns the adequate field from the 3D array.
     private float GetFromGrid(int x, int y, int z)
     {
         return m_Grid[x + z * (m_ArraySize.x + 1) + y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)];
     }
 
+    // Returns rounded real world position of a marching cubes vertex.
     private Vector3 GetMarchingCubesVertex(Vector3 pos, Vector3 vert0, float val0, Vector3 vert1, float val1)
     {
         Vector3 ret = pos + (vert0 + (m_Boundry - val0) * (vert1 - vert0) / (val1 - val0)) * m_Scale;
         return new Vector3(((int)(ret.x * 100.0f + 0.5f)) / 100.0f, ((int)(ret.y * 100.0f + 0.5f)) / 100.0f, ((int)(ret.z * 100.0f + 0.5f)) / 100.0f);
     }
 
+    // Adds a new vertex to VBO or finds it in a dictionary if it already exists.
     private void AddVertex(Vector3 pos, Vector3 normal)
     {
         if (m_VertexDict.ContainsKey(pos))
@@ -209,6 +228,7 @@ public class MeshGenerator : MonoBehaviour
         m_Normals.Add(normal);
     }
 
+    // Updates the mesh comopnent.
     public void UpdateMesh()
     {
         m_Mesh.Clear();
@@ -217,6 +237,7 @@ public class MeshGenerator : MonoBehaviour
         m_Mesh.SetTriangles(m_Indices, 0);
     }
     
+    // Subtracts a value from each point in the 3D array contained inside a sphere. The subtracted value is based on the distance of the certain point from the center of the sphere.
     public void RemoveFromTerrain(Vector3 worldPos)
     {
         for (float y = -m_PrimitiveRadius; y <= m_PrimitiveRadius; y++)
@@ -240,7 +261,7 @@ public class MeshGenerator : MonoBehaviour
         }
     }
 
-
+    // Destroys all previously created stalactites.
     public void ClearTopSpeleo()
     {
         while (m_TopSpeleoParent.childCount > 0)
@@ -249,6 +270,7 @@ public class MeshGenerator : MonoBehaviour
         }
     }
 
+    // Destroys all previously created stalagmites.
     public void ClearBotSpeleo()
     {
         while (m_BotSpeleoParent.childCount > 0)
@@ -256,8 +278,6 @@ public class MeshGenerator : MonoBehaviour
             DestroyImmediate(m_BotSpeleoParent.GetChild(0).gameObject);
         }
     }
-    [SerializeField, Range(0.0f, 1.0f)] private float m_StalagmiteHeightCoefficient = 0.5f;
-    [SerializeField, Range(1.0f, 2.0f)] private float m_StalagmiteRadiusCoefficient = 1.2f;
 
     [SerializeField] private float m_Radius = 0.05f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_RadiusFluctuation = 0.2f;
@@ -266,7 +286,8 @@ public class MeshGenerator : MonoBehaviour
     [SerializeField, Range(0.0f, 1.0f)] private float m_WidthExponentFluctutation = 1.0f;
 
 
-    public void GenerateSpeleothems(float spawnProbability, float stalagmiteProability, float strawProbability, float maxHeight)
+    // Generates speleothems on predefined positions.
+    public void GenerateSpeleothems(float spawnProbability, float maxHeight, float strawProbability, float stalagmiteProability, float stalagmiteHeightCoef, float stalagmiteRadiusCoef)
     {
         MeshCollider meshCollider = GetComponent<MeshCollider>();
         meshCollider.enabled = true;
@@ -295,19 +316,21 @@ public class MeshGenerator : MonoBehaviour
 
                 if (!botSpeleo.generate || Random.value > stalagmiteProability) continue;
 
-                height = height * m_StalagmiteHeightCoefficient;
-                radius = radius * m_StalagmiteRadiusCoefficient;
+                height = height * stalagmiteHeightCoef;
+                radius = radius * stalagmiteRadiusCoef;
                 widthExponent = widthExponent + 2.0f;
                 GenerateBotSpeleo(botSpeleo.pos - upCorrection, height, radius, widthExponent);
             }
         }
     }
 
+    // Specifies the speleothem type.
     enum SpeleoType
     {
         Normal, Straw
     }
 
+    // Contains data about a stalagmite.
     struct BotSpeleo
     {
         public Vector3 pos;
@@ -319,6 +342,7 @@ public class MeshGenerator : MonoBehaviour
     [SerializeField] private int m_NumPointsHorizontal = 20;
     [SerializeField] private int m_NumPointsVertical = 20;
 
+    // Generates a single stalactite.
     private BotSpeleo GenerateTopSpeleo(Vector3 pos, float height, float radius, float widthExponent, SpeleoType speleoType)
     {
         BotSpeleo ret = new BotSpeleo() { generate = false };
@@ -401,6 +425,8 @@ public class MeshGenerator : MonoBehaviour
         return ret;
     }
 
+
+    // Generates a single stalagmite.
     private void GenerateBotSpeleo(Vector3 pos, float height, float radius, float widthExponent)
     {
         List<Vector3> vertices = new List<Vector3>();
@@ -454,8 +480,7 @@ public class MeshGenerator : MonoBehaviour
     private List<Vector3Int> m_Minimas = new List<Vector3Int>();
     private List<Vector3Int> m_TEMP = new List<Vector3Int>();
 
-    [SerializeField, Range(0, 50)] private int m_SearchHeight = 0;
-
+    // Each vertex inside the 3D array has an assigned group index, which points to a group instance. Group specifies the local water height based on its neighbouring groups.
     struct Group
     {
         public int waterHeight;
@@ -483,6 +508,7 @@ public class MeshGenerator : MonoBehaviour
 
     Dictionary<Vector3, int> m_WaterVertexDict;
 
+    // Searches the 3D array for local minima.
     public void FindLowGrounds(float groundWaterLevelHeight)
     {
         m_Minimas = new List<Vector3Int>();
@@ -520,6 +546,7 @@ public class MeshGenerator : MonoBehaviour
             }
         }
 
+        // Launches a bradth-first search through the 3D array and marks the visited vertices with a group index.
         void ExploreGroup(Vector3Int start)
         {
             Queue<Vector3Int> q = new Queue<Vector3Int>();
@@ -605,6 +632,8 @@ public class MeshGenerator : MonoBehaviour
             slices.Add(y);
         }
 
+
+        // Builds the cave lake mesh employing the Marching Squares algorithm.
         foreach (int y in slices)
         {
             for (int z = 0; z < m_ArraySize.z; z++)
@@ -660,8 +689,11 @@ public class MeshGenerator : MonoBehaviour
         Mesh mesh = new Mesh();
         mesh.SetVertices(m_WaterVertices);
         mesh.SetTriangles(m_WaterIndices, 0);
+        mesh.RecalculateNormals();
         meshFilter.mesh = mesh;
     }
+
+    // Returns rounded real world position of a marching squares vertex.
     private Vector3 GetMarchingSquaresVertex(Vector3 pos, Vector3 vert0, float val0, Vector3 vert1, float val1)
     {
         Vector3 ret;
@@ -676,6 +708,7 @@ public class MeshGenerator : MonoBehaviour
         return new Vector3(((int)(ret.x * 100.0f + 0.5f)) / 100.0f, ((int)(ret.y * 100.0f + 0.5f)) / 100.0f, ((int)(ret.z * 100.0f + 0.5f)) / 100.0f);
     }
 
+    // Adds a new square vertex to VBO or finds it in a dictionary if it already exists.
     private void AddSquaresVertex(Vector3 pos)
     {
         if (m_WaterVertexDict.ContainsKey(pos))
@@ -688,6 +721,7 @@ public class MeshGenerator : MonoBehaviour
         m_WaterVertices.Add(pos);
     }
 
+    // Enables or disables the rendering of a water mesh.
     public void RenderWater(bool renderMesh)
     {
         m_WaterMeshObject.gameObject.SetActive(renderMesh);
@@ -695,13 +729,15 @@ public class MeshGenerator : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        /*for (int i = 0; i < Mathf.Min(m_Minimas.Count, 2000); i++)
+        Gizmos.color = Color.yellow;    
+        for (int i = 0; i < Mathf.Min(m_Minimas.Count, 2000); i++)
         {
-            Gizmos.DrawSphere(new Vector3(m_Minimas[i].x - m_ArraySize.x / 2f, m_Minimas[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_Minimas[i].z - m_ArraySize.z / 2f) * m_Scale, 1.0f);
-        }*/
-        /*for (int i = 0; i < Mathf.Min(m_TEMP.Count, 10000); i++)
+            Gizmos.DrawSphere(new Vector3(m_Minimas[i].x - m_ArraySize.x / 2f, m_Minimas[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_Minimas[i].z - m_ArraySize.z / 2f) * m_Scale, 0.5f);
+        }
+        Gizmos.color = Color.white;
+        for (int i = 0; i < Mathf.Min(m_TEMP.Count, 10000); i++)
         {
             Gizmos.DrawSphere(new Vector3(m_TEMP[i].x - m_ArraySize.x / 2f, m_TEMP[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_TEMP[i].z - m_ArraySize.z / 2f) * m_Scale, 0.1f);
-        }*/
+        }
     }
 }

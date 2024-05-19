@@ -1,3 +1,12 @@
+/*
+ * Project: Procedural Generation of Cave Systems
+ * File: SpherePool.cs
+ * Author: Martin Douda
+ * Date: 2.5.2024
+ * Description: This file manages the instantiation, management, and deletion of spheres within the Unity environment. It provides functionality
+ * for maintaining a pool of spheres, allowing for efficient reuse and management during runtime. Additionally, it includes methods for cleaning
+ * up spheres on scene load, increasing sphere capacity, waking up and putting unused spheres to sleep, and deleting spheres when necessary.
+*/
 using System;
 using System.Collections;
 using System.Collections.Generic;

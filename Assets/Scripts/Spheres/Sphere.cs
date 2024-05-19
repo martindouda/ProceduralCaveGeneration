@@ -1,3 +1,10 @@
+/*
+ * Project: Procedural Generation of Cave Systems
+ * File: Sphere.cs
+ * Author: Martin Douda
+ * Date: 2.5.2024
+ * Description: This file provides a functionality to the spheres to visualize their neighbours.
+ */
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;

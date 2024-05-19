@@ -1,3 +1,13 @@
+/*
+ * Project: Procedural Generation of Cave Systems
+ * File: PoissonSpheres.cs
+ * Author: Martin Douda
+ * Date: 2.5.2024
+ * Description: This file provides functionality for generating and managing Poisson's spheres within the Unity environment. Poisson's
+ * spheres represent a random distribution of non-intersecting spheres in 3D space. The script also includes methods for
+ * calculating the nearest point to a given position, as well as grid position retrieval.
+*/
+
 using System.Collections.Generic;
 using UnityEditor.Search;
 using UnityEngine;

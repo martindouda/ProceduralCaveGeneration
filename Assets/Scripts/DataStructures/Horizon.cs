@@ -1,3 +1,13 @@
+/*
+ * Project: Procedural Generation of Cave Systems
+ * File: Horizons.cs
+ * Author: Martin Douda
+ * Date: 2.5.2024
+ * Description: This file defines a class for representing horizons, within the Unity environment. Horizons define the cost of
+ * traveling at their height. The script includes functionality for specifying the height of each horizon and sorting them within
+ * a heap based on their height. Additionally, it provides visual representation of horizons using Gizmos in the Unity Editor. 
+ */
+
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;

@@ -1,14 +1,25 @@
+/*
+ * Project: Procedural Generation of Cave Systems
+ * File: MarchingCubesTable.cs
+ * Author: Martin Douda
+ * Date: 2.5.2024
+ * Description: Provides the necessary data for the Marching Cubes algorithm for generating 3D surfaces from scalar fields.
+ * Each cube in the volumetric grid is processed to determine its surface configuration, resulting in a mesh of triangles.
+ */
 using UnityEngine;
 
+// Define a static class to hold tables required for the Marching Cubes algorithm
 public static class MarchingCubesTables
 {
+    // Define the connections between vertices to form edges of the cube
     public static int[][] edgeConnections = {
         new int[] {0,1}, new int[] {1,2}, new int[] {2,3}, new int[] {3,0},
         new int[] {4,5}, new int[] {5,6}, new int[] {6,7}, new int[] {7,4},
         new int[] {0,4}, new int[] {1,5}, new int[] {2,6}, new int[] {3,7}
     };
 
-    public static Vector3[] cubeCorners = new Vector3[] {
+    // Define the coordinates of the corners of the cube
+    public static Vector3[] cubeCorners = {
         new Vector3(0, 0, 1),
         new Vector3(1, 0, 1),
         new Vector3(1, 0, 0),
@@ -19,6 +30,7 @@ public static class MarchingCubesTables
         new Vector3(0, 1, 0)
     };
 
+    // Define the triangle table for each possible case of the Marching Cubes algorithm
     public static int[][] triTable = {
         new int[] {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},
         new int[] {0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1},

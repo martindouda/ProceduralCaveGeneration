@@ -1,3 +1,13 @@
+/*
+ * Project: Procedural Generation of Cave Systems
+ * File: CaveGenerator.cs
+ * Author: Martin Douda
+ * Date: 2.5.2024
+ * Description: This is the core file of the entire project. It contains all the variables to configure the cave generation process.
+ * It manages the entire process of generating Poisson spheres and the paths over them, which are then used by mesh generator
+ * to generate all the meshes.
+ */
+
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -23,40 +33,41 @@ public class CaveGenerator : MonoBehaviour
     [SerializeField] private SweepingPrimitiveGenerator m_SweepingPrimitiveGenerator;
 
     [SerializeField] private Material[] m_Materials = new Material[(int)PoissonSpheres.SphereType._SIZE];
-
-    [Space(20), Header("SPHERES - POISSON SPHERES")]
+    [Space(40), Header("1) SPHERES - POISSON SPHERES")]
     [SerializeField] private Vector3Int m_Size = new Vector3Int(50, 50, 50);
     [SerializeField, Range(0.5f, 5.0f)] private float m_MinSphereRadius = 1.0f;
     [SerializeField, Range(0.5f, 5.0f)] private float m_MaxSphereRadius = 3.0f;
     [SerializeField, Range(1.0f, 10.0f)] private float m_SpacingLimit = 2.0f;
     [SerializeField, Range(1, 100)] private int m_NumSamplesBeforeRejection = 30;
-    [Space(20), Header("SPHERES - NEIGHBOUR CONNECTION")]
+    [Space(20), Header("2) SPHERES - NEIGHBOUR CONNECTION")]
     [SerializeField, Range(1, 10)] private int m_SearchDistance = 5;
     [SerializeField, Range(1, 100)] private int m_IdealNumOfNearest = 30;
-    [Space(20), Header("PATHS - GENERATION")]
+    [Space(20), Header("3) PATHS - GENERATION")]
     [SerializeField, Range(0.0f, 100.0f)] private float m_HorizonsWeight = 10.0f;
     [SerializeField, Range(0.0f, 100.0f)] private float m_FracturesWeight = 10.0f;
-    [Space(20), Header("PATHS - PRONING")]
-    [SerializeField, Range(0.0f, 100.0f)] private float m_ProningExponent = 1.0f;
-    [Space(20), Header("PATHS - RAMIFICATION")]
+    [Space(20), Header("4) PATHS - PRONING")]
+    [SerializeField, Range(0.0f, 30.0f)] private float m_ProningExponent = 1.0f;
+    [Space(20), Header("5) PATHS - RAMIFICATION")]
     [SerializeField, Range(0.0f, 1.0f)] private float m_BranchesPerPathNodeCoefficient = 0.5f;
     [SerializeField, Range(0.0f, 100.0f)] private float m_MaxDistFromPath = 10.0f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_ProbabilityOfBranchSpawn = 0.5f;
-    [Space(20), Header("MESH - SWEEPING PRIMITIVES")]
+    [Space(20), Header("6) MESH - SWEEPING PRIMITIVES")]
     [SerializeField, Range(0.1f, 10.0f)] private float m_TerrainEditsPerUnit = 2.0f;
     [SerializeField, Range(0.1f, 5.0f)] private float m_PrimitiveRadius = 2.5f;
     [SerializeField, Range(0.1f, 2.0f)] private float m_DiscRadius = 1.0f;
     [SerializeField, Range(0.01f, 1.0f)] private float m_DiscPower = 1.0f;
-    [Space(20), Header("MESH - MARCHING CUBES")]
-    [SerializeField, Range(0.1f, 5.0f)] private float m_MarchingCubesScale = 1.0f;
+    [Space(20), Header("7) MESH - MARCHING CUBES")]
+    [SerializeField, Range(0.2f, 2.0f)] private float m_MarchingCubesScale = 1.0f;
     [SerializeField, Range(0.0f, 1.0f)] private float m_MarchingCubesBoundry = 0.5f;
-    [Space(20), Header("SPELEOTHEMS")]
-    [SerializeField, Range(0.0f, 1.0f)] private float m_StalactiteSpawnProbability = 0.1f;
-    [SerializeField, Range(0.0f, 1.0f)] private float m_StalagmiteBelowStalactiteSpawnProbability = 0.5f;
-    [SerializeField, Range(0.0f, 1.0f)] private float m_StrawProbability = 0.5f;
-    [SerializeField, Range(0.1f, 5.0f)] private float m_SpeleothemsMaxHeight = 2.0f;
+    [Space(20), Header("8) SPELEOTHEMS")]
+    [SerializeField, Range(0.1f, 5.0f)] private float m_StalactitesMaxHeight = 2.0f;
     [SerializeField, Range(1.0f,45.0f)] private float m_CeilingAngleLimit = 15.0f;
-    [Space(20), Header("WATER")]
+    [SerializeField, Range(0.0f, 1.0f)] private float m_StalactiteSpawnProbability = 0.1f;
+    [SerializeField, Range(0.0f, 1.0f)] private float m_StrawProbability = 0.5f;
+    [SerializeField, Range(0.0f, 1.0f)] private float m_StalagmiteBelowStalactiteSpawnProbability = 0.5f;
+    [SerializeField, Range(0.0f, 1.0f)] private float m_StalagmiteHeightCoefficient = 0.5f;
+    [SerializeField, Range(1.0f, 2.0f)] private float m_StalagmiteRadiusCoefficient = 1.2f;
+    [Space(20), Header("9) CAVE LAKES")]
     [SerializeField, Range(1.0f, 100.0f)] private float m_GroundWaterLevelHeight = 15.0f;
 
     [SerializeField]
@@ -126,6 +137,7 @@ public class CaveGenerator : MonoBehaviour
         Gizmos.DrawWireCube(new Vector3(transform.position.x, transform.position.y + m_Size.y / 2, transform.position.z), m_Size);
     }
 
+    // Generates poisson spheres.
     public void GeneratePoissonSpheres()
     {
         float time = Time.realtimeSinceStartup;
@@ -136,10 +148,64 @@ public class CaveGenerator : MonoBehaviour
         ConnectNearest(m_SearchDistance, m_IdealNumOfNearest);
 
         GenerationTime = Time.realtimeSinceStartup - time;
+
+        // Tries to connect at most 'idealNumOfNeighbours' closest neighbours in a cube with side of 2 * 'searchDist'.
+        void ConnectNearest(int searchDist, int idealNumOfNeighbours)
+        {
+            var points = m_PoissonSpheres.Points;
+            var grid = m_PoissonSpheres.Grid;
+
+            //object furthestApartSpheresLock = new object();
+            //Parallel.For(0, points.Count, (i) => { 
+            for (int i = 0; i < points.Count; i++)
+            {
+                Point p = points[i];
+                Vector3Int gridPos = m_PoissonSpheres.GetGridPos(p.Pos);
+
+                int startX = Mathf.Max(gridPos.x - searchDist, 0);
+                int endX = Mathf.Min(gridPos.x + searchDist, m_PoissonSpheres.GridSizeX - 1);
+                int startY = Mathf.Max(gridPos.y - searchDist, 0);
+                int endY = Mathf.Min(gridPos.y + searchDist, m_PoissonSpheres.GridSizeY - 1);
+                int startZ = Mathf.Max(gridPos.z - searchDist, 0);
+                int endZ = Mathf.Min(gridPos.z + searchDist, m_PoissonSpheres.GridSizeZ - 1);
+
+                int searchWidth = (int)(2.0f * searchDist) + 1;
+                Heap<NearestPoint> heap = new Heap<NearestPoint>(searchWidth * searchWidth * searchWidth);
+
+
+
+                for (int z = startZ; z <= endZ; z++)
+                {
+                    for (int y = startY; y <= endY; y++)
+                    {
+                        for (int x = startX; x <= endX; x++)
+                        {
+                            int index = grid[x, y, z];
+                            if (index == -1) continue;
+
+                            heap.Add(new NearestPoint(index, (points[index].Pos - p.Pos).sqrMagnitude));
+                        }
+                    }
+                }
+
+                heap.Pop(); // Pop itself from the heap;
+                while (heap.Count > 0 && p.NextList.Count < idealNumOfNeighbours)
+                {
+                    var item = heap.Pop();
+                    item.CalculateDist();
+                    p.NextList.Add(item);
+
+
+                    m_FurthestApartConnectedSpheres = Mathf.Max(item.Dist, m_FurthestApartConnectedSpheres);
+
+                }
+            }//);
+             //Debug.Log(m_FurthestApartConnectedSpheres);
+             //Debug.Log("min: " + m_MinNearest + ", max: " + m_MaxNearest);
+        }
     }
 
-    // Generate a new mesh.
-
+    // Generates paths over the graph created by poisson spheres.
     public void GeneratePaths()
     {
         if (!CheckSpheresDistributionReady()) return;
@@ -174,38 +240,68 @@ public class CaveGenerator : MonoBehaviour
         {
             path.ColorPath();
         }
+
+        // Prones a path between two points if there is a cheaper alternative passing through another point.
+        void PronePaths()
+        {
+            var points = m_PoissonSpheres.Points;
+
+            Dictionary<Point, Dictionary<Point, Path>> dict = new Dictionary<Point, Dictionary<Point, Path>>();
+            foreach (Path path in m_Paths)
+            {
+                if (!dict.ContainsKey(path.Start))
+                {
+                    dict.Add(path.Start, new Dictionary<Point, Path>());
+                }
+                if (!dict.ContainsKey(path.End))
+                {
+                    dict.Add(path.End, new Dictionary<Point, Path>());
+                }
+                dict[path.Start][path.End] = path;
+                dict[path.End][path.Start] = path;
+            }
+
+            m_Paths.Clear();
+            foreach (Point point in dict.Keys)
+            {
+                foreach (Point otherPoint in dict[point].Keys)
+                {
+                    TryPronePath(dict, point, otherPoint);
+                }
+            }
+        }
+
+        // Generates additional tunnels spreading from the paths.
+        void GenerateBranches()
+        {
+            int pathsSizeBeforeAddition = m_Paths.Count;
+            for (int i = 0; i < pathsSizeBeforeAddition; i++)
+            {
+                Path path = m_Paths[i];
+                for (int j = 0; j < path.Points.Count * m_BranchesPerPathNodeCoefficient; j++)
+                {
+                    if (Random.value > m_ProbabilityOfBranchSpawn) continue;
+
+                    Point pointOnPath = path.Points[Random.Range(0, path.Points.Count)];
+                    Vector3 randomPos = Random.insideUnitSphere * m_MaxDistFromPath;
+                    Point randomPoint = m_PoissonSpheres.GetNearestPoint(pointOnPath.Pos - new Vector3(m_PoissonSpheres.GridSizeX / 2.0f, 0.0f, m_PoissonSpheres.GridSizeZ / 2.0f) + randomPos, m_SearchDistance);
+
+                    if (randomPoint == null) continue;
+
+                    FindShortestPath(pointOnPath, randomPoint);
+                }
+            }
+        }
     }
 
+    // Calls all the functions in order to generate the entirity of the cave mesh.
     public void GenerateMesh()
     { 
         m_SweepingPrimitiveGenerator.LoadPixels();
-        m_MeshGenerator.Generate(m_Size, m_MarchingCubesScale, m_MarchingCubesBoundry, m_DiscPower, m_PrimitiveRadius, m_DiscRadius, m_CeilingAngleLimit);
+        m_MeshGenerator.GenerateCaveMesh(m_Size, m_MarchingCubesScale, m_MarchingCubesBoundry, m_DiscPower, m_PrimitiveRadius, m_DiscRadius, m_CeilingAngleLimit);
         m_MeshGenerator.SweepPrimitives(m_Paths, m_TerrainEditsPerUnit, m_SweepingPrimitiveGenerator);
-        m_MeshGenerator.CreateShape();
+        m_MeshGenerator.PerformMarchingCubes();
         m_MeshGenerator.UpdateMesh();
-    }
-
-
-    // Generates additional tunnels spreading from the paths.
-    private void GenerateBranches()
-    {
-        int pathsSizeBeforeAddition = m_Paths.Count;
-        for (int i = 0; i < pathsSizeBeforeAddition; i++)
-        {
-            Path path = m_Paths[i];
-            for (int j = 0; j < path.Points.Count * m_BranchesPerPathNodeCoefficient; j++)
-            {
-                if (Random.value > m_ProbabilityOfBranchSpawn) continue;
-
-                Point pointOnPath = path.Points[Random.Range(0, path.Points.Count)];
-                Vector3 randomPos = Random.insideUnitSphere * m_MaxDistFromPath;
-                Point randomPoint = m_PoissonSpheres.GetNearestPoint(pointOnPath.Pos - new Vector3(m_PoissonSpheres.GridSizeX / 2.0f, 0.0f, m_PoissonSpheres.GridSizeZ / 2.0f) + randomPos, m_SearchDistance);
-                
-                if (randomPoint == null) continue;
-                
-                FindShortestPath(pointOnPath, randomPoint);
-            }
-        }
     }
 
     // Caches the keypoints. 
@@ -255,89 +351,6 @@ public class CaveGenerator : MonoBehaviour
             Fracture fracture = fractureTransform.GetComponent<Fracture>();
             m_Fractures.Add(fracture);
         }
-    }
-
-    // Tries to connect at most 'idealNumOfNeighbours' closest neighbours in a cube with side of 2 * 'searchDist'.
-    public void ConnectNearest(int searchDist, int idealNumOfNeighbours)
-    {
-        var points = m_PoissonSpheres.Points;
-        var grid = m_PoissonSpheres.Grid;
-
-        //object furthestApartSpheresLock = new object();
-        //Parallel.For(0, points.Count, (i) => { 
-        for (int i = 0; i < points.Count; i++)    
-        {
-            Point p = points[i];
-            Vector3Int gridPos = m_PoissonSpheres.GetGridPos(p.Pos);
-
-            int startX = Mathf.Max(gridPos.x - searchDist, 0);
-            int endX = Mathf.Min(gridPos.x + searchDist, m_PoissonSpheres.GridSizeX - 1);
-            int startY = Mathf.Max(gridPos.y - searchDist, 0);
-            int endY = Mathf.Min(gridPos.y + searchDist, m_PoissonSpheres.GridSizeY - 1);
-            int startZ = Mathf.Max(gridPos.z - searchDist, 0);
-            int endZ = Mathf.Min(gridPos.z + searchDist, m_PoissonSpheres.GridSizeZ - 1);
-
-            int searchWidth = (int)(2.0f * searchDist) + 1;
-            Heap<NearestPoint> heap = new Heap<NearestPoint>(searchWidth * searchWidth * searchWidth);
-
-
-
-            for (int z = startZ; z <= endZ; z++)
-            {
-                for (int y = startY; y <= endY; y++)
-                {
-                    for (int x = startX; x <= endX; x++)
-                    {
-                        int index = grid[x, y, z];
-                        if (index == -1) continue;
-
-                        heap.Add(new NearestPoint(index, (points[index].Pos - p.Pos).sqrMagnitude));
-                    }
-                }
-            }
-
-            heap.Pop(); // Pop itself from the heap;
-            while (heap.Count > 0 && p.NextList.Count < idealNumOfNeighbours)
-            {
-                var item = heap.Pop();
-                item.CalculateDist();
-                p.NextList.Add(item);
-
-
-                m_FurthestApartConnectedSpheres = Mathf.Max(item.Dist, m_FurthestApartConnectedSpheres);
-                
-            }
-        }//);
-        //Debug.Log(m_FurthestApartConnectedSpheres);
-        //Debug.Log("min: " + m_MinNearest + ", max: " + m_MaxNearest);
-    }
-
-    // Returns smoothly interpolated cost of the closest horizon above and below.
-    private float GetHorizonCost(float height)
-    {
-        for (int i = 1; i < m_Horizons.Count; i++)
-        {
-            if (height < m_CachedHorizonsHeights[i])
-            {
-                // smooth step function
-                float normalizedDistanceBetweenHorizons =  (height - m_CachedHorizonsHeights[i - 1]) / (m_CachedHorizonsHeights[i] - m_CachedHorizonsHeights[i - 1]);
-                return Mathf.SmoothStep(m_Horizons[i - 1].Cost, m_Horizons[i].Cost, normalizedDistanceBetweenHorizons) * m_HorizonsWeight;
-            }
-        }
-        return 0.0f;
-    }
-
-    // Returns the cost of traveling in a direction.
-    private float GetFracturesCost(Vector3 direction)
-    {
-        float power = 2.0f;
-        float fractureCost = m_Fractures.Count;
-        foreach (Fracture f in m_Fractures)
-        {
-            fractureCost -= Mathf.Pow(1.0f - Mathf.Abs(Vector3.Dot(direction, f.NormalVector)), power);
-        }
-
-        return fractureCost * m_FracturesWeight;
     }
 
     // Class used by A* algorithm to find the cheapest path between two key points.
@@ -448,35 +461,33 @@ public class CaveGenerator : MonoBehaviour
         {
             m_Paths.Add(new Path(pointsOnPath, goalNode.GCost));
         }
-    }
 
-    // Prones a path between two points if there is a cheaper alternative passing through another point.
-    private void PronePaths()
-    {
-        var points = m_PoissonSpheres.Points;
-
-        Dictionary<Point, Dictionary<Point, Path>> dict = new Dictionary<Point, Dictionary<Point, Path>>();
-        foreach (Path path in m_Paths)
+        // Returns smoothly interpolated cost of the closest horizon above and below.
+        float GetHorizonCost(float height)
         {
-            if (!dict.ContainsKey(path.Start))
+            for (int i = 1; i < m_Horizons.Count; i++)
             {
-                dict.Add(path.Start, new Dictionary<Point, Path>());
+                if (height < m_CachedHorizonsHeights[i])
+                {
+                    // smooth step function
+                    float normalizedDistanceBetweenHorizons = (height - m_CachedHorizonsHeights[i - 1]) / (m_CachedHorizonsHeights[i] - m_CachedHorizonsHeights[i - 1]);
+                    return Mathf.SmoothStep(m_Horizons[i - 1].Cost, m_Horizons[i].Cost, normalizedDistanceBetweenHorizons) * m_HorizonsWeight;
+                }
             }
-            if (!dict.ContainsKey(path.End))
-            {
-                dict.Add(path.End, new Dictionary<Point, Path>());
-            }
-            dict[path.Start][path.End] = path;
-            dict[path.End][path.Start] = path;
+            return 0.0f;
         }
 
-        m_Paths.Clear();
-        foreach (Point point in dict.Keys)
+        // Returns the cost of traveling in a direction.
+        float GetFracturesCost(Vector3 direction)
         {
-            foreach (Point otherPoint in dict[point].Keys)
+            float power = 2.0f;
+            float fractureCost = m_Fractures.Count;
+            foreach (Fracture f in m_Fractures)
             {
-                TryPronePath(dict, point, otherPoint);
+                fractureCost -= Mathf.Pow(1.0f - Mathf.Abs(Vector3.Dot(direction, f.NormalVector)), power);
             }
+
+            return fractureCost * m_FracturesWeight;
         }
     }
 
@@ -499,16 +510,19 @@ public class CaveGenerator : MonoBehaviour
         if (!m_Paths.Contains(dict[startPoint][endPoint])) m_Paths.Add(dict[startPoint][endPoint]);
     }
 
+    // Generates the stalactites using current parameters.
     public void GenerateStalactites()
     {
-        m_MeshGenerator.GenerateSpeleothems(m_StalactiteSpawnProbability, m_StalagmiteBelowStalactiteSpawnProbability, m_StrawProbability, m_SpeleothemsMaxHeight);
+        m_MeshGenerator.GenerateSpeleothems(m_StalactiteSpawnProbability, m_StalactitesMaxHeight, m_StrawProbability, m_StalagmiteBelowStalactiteSpawnProbability, m_StalagmiteHeightCoefficient, m_StalagmiteRadiusCoefficient);
     }
 
+    // Generates cave lakes using the current parameters.
     public void GenerateWater()
     {
         m_MeshGenerator.FindLowGrounds((int)(m_GroundWaterLevelHeight / m_MarchingCubesScale));
     }
 
+    // Returns the sphere distribution state.
     public bool CheckSpheresDistributionReady()
     {
         if (m_PoissonSpheres != null) return true;
@@ -517,6 +531,7 @@ public class CaveGenerator : MonoBehaviour
         return false;
     }
 
+    // Returns the paths state.
     public bool CheckPathsGenerated()
     {
         if (m_Paths.Count != 0) return true;
@@ -525,10 +540,15 @@ public class CaveGenerator : MonoBehaviour
         return false;
     }
 
+    // Enables or disables the path visualization.
     public void RenderPaths(bool visible)
     {
         if (visible)
         {
+            for (int i = m_LineRenderersParent.childCount - 1; i >= 0; i--)
+            {
+                DestroyImmediate(m_LineRenderersParent.GetChild(i).gameObject);
+            }
             foreach (var path in m_Paths)
             {
                 path.AddLineRenderer(m_PoissonSpheres, Instantiate(m_LineRendererPrefab, m_LineRenderersParent));
@@ -543,11 +563,13 @@ public class CaveGenerator : MonoBehaviour
         }
     }
 
+    // Enables or disables the visibility of the caves mesh.
     public void RenderMesh(bool value)
     {
         GetComponent<MeshRenderer>().enabled = value;
     }
 
+    // Updates the visiility of the poisson spheres.
     public void RenderPoissonSpheres(int option, bool neighbourVisualization)
     {
         m_SpherePool.NewRound();
@@ -611,26 +633,22 @@ public class CaveGenerator : MonoBehaviour
         m_SpherePool.PutUnusedToSleep();
     }
 
-    public void SetTransparency(float value)
-    {
-        Debug.Log("Transparency set to: " + value);
-    }
-
+    // Enables or disables the key points visibility.
     public void RenderKeyPoints(bool value)
     {
         m_KeyPointsParent.gameObject.SetActive(value);
     }
 
+    // Enables or disables the speleothems visibility.
     public void RenderSpeleothems(bool value)
     {
         m_StalactitesParent.gameObject.SetActive(value);
         m_StalagmitesParent.gameObject.SetActive(value);
     }
 
+    // Enables or disables the cave lakes visiility.
     public void RenderWater(bool renderWater)
     {
         m_MeshGenerator.RenderWater(renderWater);
     }
-
-
 }
