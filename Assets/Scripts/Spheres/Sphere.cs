@@ -15,11 +15,12 @@ public class Sphere : MonoBehaviour
     // Visualizes the spheres connected to this sphere.
     public void Visualize()
     {
-        if (CaveGenerator.Instance == null)
+        Debug.LogWarning("This feature has been disabled.");
+        /*if (CaveGenerator.Instance == null)
         {
             Debug.LogWarning("Update on CaveGenerator is necessary!");
             return;
         }
-        CaveGenerator.Instance.VisualizedSphere = int.Parse(gameObject.name.Substring(7));
+        CaveGenerator.Instance.VisualizedSphere = int.Parse(gameObject.name.Substring(7));*/
     }
 }

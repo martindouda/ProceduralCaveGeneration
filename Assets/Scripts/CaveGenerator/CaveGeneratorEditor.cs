@@ -61,7 +61,7 @@ public class CaveGeneratorEditor : Editor
             
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
-            if (m_SelectedVisualizationOption == 3)
+            /*if (m_SelectedVisualizationOption == 3)
             {
                 EditorGUILayout.BeginHorizontal();
                 EditorGUILayout.LabelField("Show Neighbour", GUILayout.Width(200));
@@ -78,7 +78,7 @@ public class CaveGeneratorEditor : Editor
                 }
                 GUILayout.FlexibleSpace();
                 EditorGUILayout.EndHorizontal();
-            }
+            }*/
         }
         { 
             EditorGUILayout.BeginHorizontal();
@@ -95,14 +95,7 @@ public class CaveGeneratorEditor : Editor
             EditorGUILayout.LabelField("Render Paths", GUILayout.Width(200));
             if (m_RenderPathsToggle != (m_RenderPathsToggle = EditorGUILayout.Toggle(m_RenderPathsToggle)))
             {
-                if (!caveGenerator.CheckSpheresDistributionReady() || !caveGenerator.CheckPathsGenerated())
-                {
-                    m_RenderPathsToggle = !m_RenderPathsToggle; 
-                }
-                else
-                {
-                    caveGenerator.RenderPaths(m_RenderPathsToggle);
-                }
+                caveGenerator.RenderPaths(m_RenderPathsToggle);
             }
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();

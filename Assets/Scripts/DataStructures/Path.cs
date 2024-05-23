@@ -39,7 +39,7 @@ public class Path
         List<Vector3> positions = new List<Vector3>();
         foreach (var point in m_Points)
         {
-            positions.Add(point.Pos - new Vector3(poissonSpheres.Size.x / 2, 0.0f, poissonSpheres.Size.y / 2));
+            positions.Add(point.Pos - new Vector3(poissonSpheres.Size.x / 2.0f, 0.0f, poissonSpheres.Size.z / 2.0f));
         }
         lineRenderer.positionCount = m_Points.Count;
         lineRenderer.SetPositions(positions.ToArray());

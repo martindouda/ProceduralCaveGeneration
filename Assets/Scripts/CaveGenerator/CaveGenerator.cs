@@ -18,8 +18,6 @@ using static PoissonSpheres;
 [ExecuteInEditMode, RequireComponent(typeof(SpherePool))]
 public class CaveGenerator : MonoBehaviour
 {
-    public static CaveGenerator Instance;
-
     [Space(20)][Header("PREFABS AND PARENTS")]
     [SerializeField] private Transform m_KeyPointsParent;
     [SerializeField] private Transform m_LineRenderersParent;
@@ -107,12 +105,6 @@ public class CaveGenerator : MonoBehaviour
         m_MeshGenerator = GetComponent<MeshGenerator>();
     }
 
-    // Detect key point's movement.
-    private void Update()
-    {
-        Instance = this;
-    }
-
     // Draw the borders of the cave and the horizons.
     private void OnDrawGizmos()
     {
@@ -143,6 +135,13 @@ public class CaveGenerator : MonoBehaviour
         float time = Time.realtimeSinceStartup;
 
         InitializeVariables();
+        ClearPaths();
+        m_MeshGenerator.DeleteCaveMesh();
+        m_MeshGenerator.ClearBotSpeleo();
+        m_MeshGenerator.ClearTopSpeleo();
+        m_MeshGenerator.DeleteWaterMesh();
+        
+
         m_PoissonSpheres = new PoissonSpheres(m_Size, m_MinSphereRadius, m_MaxSphereRadius, m_SpacingLimit);
         m_PoissonSpheres.GeneratePoints(m_NumSamplesBeforeRejection);
         ConnectNearest(m_SearchDistance, m_IdealNumOfNearest);
@@ -513,12 +512,16 @@ public class CaveGenerator : MonoBehaviour
     // Generates the stalactites using current parameters.
     public void GenerateStalactites()
     {
+        if (!CheckSpheresDistributionReady()) return;
+        if (!CheckPathsGenerated()) return;   
         m_MeshGenerator.GenerateSpeleothems(m_StalactiteSpawnProbability, m_StalactitesMaxHeight, m_StrawProbability, m_StalagmiteBelowStalactiteSpawnProbability, m_StalagmiteHeightCoefficient, m_StalagmiteRadiusCoefficient);
     }
 
     // Generates cave lakes using the current parameters.
     public void GenerateWater()
     {
+        if (!CheckSpheresDistributionReady()) return;
+        if (!CheckPathsGenerated()) return;
         m_MeshGenerator.FindLowGrounds((int)(m_GroundWaterLevelHeight / m_MarchingCubesScale));
     }
 
@@ -540,15 +543,21 @@ public class CaveGenerator : MonoBehaviour
         return false;
     }
 
+    public void ClearPaths()
+    {
+        for (int i = m_LineRenderersParent.childCount - 1; i >= 0; i--)
+        {
+            DestroyImmediate(m_LineRenderersParent.GetChild(i).gameObject);
+        }
+    }
+
     // Enables or disables the path visualization.
     public void RenderPaths(bool visible)
     {
         if (visible)
         {
-            for (int i = m_LineRenderersParent.childCount - 1; i >= 0; i--)
-            {
-                DestroyImmediate(m_LineRenderersParent.GetChild(i).gameObject);
-            }
+            ClearPaths();
+            if (m_Paths == null) return;
             foreach (var path in m_Paths)
             {
                 path.AddLineRenderer(m_PoissonSpheres, Instantiate(m_LineRendererPrefab, m_LineRenderersParent));
@@ -556,10 +565,7 @@ public class CaveGenerator : MonoBehaviour
         }
         else
         {
-            for (int i = m_LineRenderersParent.childCount - 1; i >= 0; i--)
-            {
-                DestroyImmediate(m_LineRenderersParent.GetChild(i).gameObject);
-            }
+            ClearPaths();
         }
     }
 

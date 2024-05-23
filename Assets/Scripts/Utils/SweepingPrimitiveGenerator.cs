@@ -47,6 +47,15 @@ public class SweepingPrimitiveGenerator : MonoBehaviour
         m_PixelsPassage = m_ImagePassage.GetPixels();
     }
 
+    /*[SerializeField] private Transform m_Prefab;
+    [SerializeField] private float m_Radius = 0.5f;
+
+    private void Start()
+    {
+        LoadPixels();
+        GeneratePoints(Vector3.forward, 0.0f, 3.0f, m_Radius);
+    }*/
+
     // Performs the Poisson Discs distribution among the pixels and returns a list of the resulting disc positions. 
     public List<Vector3> GeneratePoints(Vector3 tangent, float yNormalized, float primitiveRadius, float discRadius)
     {
@@ -63,7 +72,7 @@ public class SweepingPrimitiveGenerator : MonoBehaviour
             else if (yNormalized >= m_DistanceFromWaterTableKeyhole)    pixels = m_PixelsKeyhole;
             else                                                        pixels = m_PixelsBed;
         }
-                                                     
+
 
         m_CellSize = discRadius / Mathf.Sqrt(2.0f);
         m_GridSize = new Vector2Int((int)(regionSize.x / m_CellSize), (int)(regionSize.y / m_CellSize));

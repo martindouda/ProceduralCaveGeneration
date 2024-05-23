@@ -48,6 +48,16 @@ public class MeshGenerator : MonoBehaviour
     [SerializeField] private Transform m_BotSpeleoParent;
 
     [SerializeField] private Transform m_WaterMeshObject;
+
+    public void DeleteCaveMesh()
+    {
+        GetComponent<MeshFilter>().mesh = null;
+        MeshCollider meshCollider = GetComponent<MeshCollider>();
+        meshCollider.sharedMesh = m_Mesh;
+        meshCollider.enabled = false;
+        m_Mesh = null;
+    }
+
     // Generates the cave mesh.
     public void GenerateCaveMesh(Vector3 sizeFloat, float scale, float boundry, float editPower, float primitiveRadius, float discRadius, float ceilingAngleLimit)
     {
@@ -259,6 +269,14 @@ public class MeshGenerator : MonoBehaviour
                 }
             }
         }
+    }
+
+    public void DeleteWaterMesh()
+    {
+        m_WaterMeshObject.GetComponent<MeshFilter>().mesh = null;
+        m_WaterVertices.Clear();
+        m_WaterGridCoords.Clear();
+        m_Minimas.Clear();
     }
 
     // Destroys all previously created stalactites.
@@ -478,7 +496,7 @@ public class MeshGenerator : MonoBehaviour
 
 
     private List<Vector3Int> m_Minimas = new List<Vector3Int>();
-    private List<Vector3Int> m_TEMP = new List<Vector3Int>();
+    private List<Vector3Int> m_WaterGridCoords = new List<Vector3Int>();
 
     // Each vertex inside the 3D array has an assigned group index, which points to a group instance. Group specifies the local water height based on its neighbouring groups.
     struct Group
@@ -503,16 +521,16 @@ public class MeshGenerator : MonoBehaviour
 
 
 
-    private List<Vector3> m_WaterVertices;
-    private List<int> m_WaterIndices;
+    private List<Vector3> m_WaterVertices = new List<Vector3>();
+    private List<int> m_WaterIndices = new List<int>();
 
-    Dictionary<Vector3, int> m_WaterVertexDict;
+    Dictionary<Vector3, int> m_WaterVertexDict = new Dictionary<Vector3, int>();
 
     // Searches the 3D array for local minima.
     public void FindLowGrounds(float groundWaterLevelHeight)
     {
         m_Minimas = new List<Vector3Int>();
-        m_TEMP = new List<Vector3Int>();
+        m_WaterGridCoords = new List<Vector3Int>();
 
         m_WaterVertices = new List<Vector3>();
         m_WaterIndices = new List<int>();
@@ -612,7 +630,7 @@ public class MeshGenerator : MonoBehaviour
                     if (!waterSurfacePointsSet.Contains(v))
                     {
                         containsPancake = true;
-                        m_TEMP.Add(v);
+                        m_WaterGridCoords.Add(v);
                         waterSurfacePointsSet.Add(v);
                     }
                     for (int i = 0; i < 8; i++)
@@ -620,7 +638,7 @@ public class MeshGenerator : MonoBehaviour
                         Vector3Int next = new Vector3Int(x + neighboursOnLevel[i, 0], y, z + neighboursOnLevel[i, 1]);
                         if (!waterSurfacePointsSet.Contains(next))
                         {
-                            m_TEMP.Add(next);
+                            m_WaterGridCoords.Add(next);
                             waterSurfacePointsSet.Add(v);
                             //SetGroupId(next.x, next.y, next.z, groupId);
                         }
@@ -735,9 +753,9 @@ public class MeshGenerator : MonoBehaviour
             Gizmos.DrawSphere(new Vector3(m_Minimas[i].x - m_ArraySize.x / 2f, m_Minimas[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_Minimas[i].z - m_ArraySize.z / 2f) * m_Scale, 0.5f);
         }
         Gizmos.color = Color.white;
-        for (int i = 0; i < Mathf.Min(m_TEMP.Count, 10000); i++)
+        for (int i = 0; i < Mathf.Min(m_WaterGridCoords.Count, 10000); i++)
         {
-            Gizmos.DrawSphere(new Vector3(m_TEMP[i].x - m_ArraySize.x / 2f, m_TEMP[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_TEMP[i].z - m_ArraySize.z / 2f) * m_Scale, 0.1f);
+            Gizmos.DrawSphere(new Vector3(m_WaterGridCoords[i].x - m_ArraySize.x / 2f, m_WaterGridCoords[i].y - Mathf.CeilToInt(m_PrimitiveRadius), m_WaterGridCoords[i].z - m_ArraySize.z / 2f) * m_Scale, 0.1f);
         }
     }
 }
