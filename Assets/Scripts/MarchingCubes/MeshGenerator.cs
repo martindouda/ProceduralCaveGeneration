@@ -49,6 +49,9 @@ public class MeshGenerator : MonoBehaviour
 
     [SerializeField] private Transform m_WaterMeshObject;
 
+    // Compute
+    [SerializeField] private ComputeManager m_ComputeManager;
+
     public void DeleteCaveMesh()
     {
         GetComponent<MeshFilter>().mesh = null;
@@ -75,8 +78,11 @@ public class MeshGenerator : MonoBehaviour
         GetComponent<MeshFilter>().mesh = m_Mesh;
 
         CreateGrid();
-        PerformMarchingCubes();
         UpdateMesh();
+        m_Mesh.Clear();
+        m_Mesh.SetVertices(m_Vertices);
+        m_Mesh.SetNormals(m_Normals);
+        m_Mesh.SetTriangles(m_Indices, 0);
 
         MeshCollider meshCollider = GetComponent<MeshCollider>();
         meshCollider.sharedMesh = m_Mesh;
@@ -127,12 +133,19 @@ public class MeshGenerator : MonoBehaviour
         }
     }
 
+    [SerializeField] private bool m_UseComputeImpl = true;
     // Builds the mesh using the Marching Cubes algorithm.
     public void PerformMarchingCubes()
     {
         ClearTopSpeleo();
         ClearBotSpeleo();
-            
+
+        if (m_UseComputeImpl)
+        {
+            m_ComputeManager.CreateMarchingCubesMesh(m_Mesh, m_ArraySize, m_Grid, m_Boundry, m_Scale, Mathf.CeilToInt(m_PrimitiveRadius));
+            return;
+        }
+
         m_Vertices = new List<Vector3>();
         m_Normals = new List<Vector3>();
         m_Indices = new List<int>();
@@ -163,18 +176,20 @@ public class MeshGenerator : MonoBehaviour
                         if (cubeValues[i] >= m_Boundry) cubeIndex |= 1 << i;
                     }
 
-                    int[] edges = MarchingCubesTables.triTable[cubeIndex];
-
-                    for (int i = 0; edges[i] != -1; i += 3)
+                    int startIndex = cubeIndex * MarchingCubesTables.triTableEntryLength;
+                    for (int i = startIndex; MarchingCubesTables.triTable[i] != -1; i += 3)
                     {
-                        int a0 = MarchingCubesTables.edgeConnections[edges[i]][0];
-                        int a1 = MarchingCubesTables.edgeConnections[edges[i]][1];
+                        int edgeIndex = MarchingCubesTables.triTable[i] * 2;
+                        int a0 = MarchingCubesTables.edgeConnections[edgeIndex];
+                        int a1 = MarchingCubesTables.edgeConnections[edgeIndex + 1];
 
-                        int b0 = MarchingCubesTables.edgeConnections[edges[i + 1]][0];
-                        int b1 = MarchingCubesTables.edgeConnections[edges[i + 1]][1];
+                        edgeIndex = MarchingCubesTables.triTable[i + 1] * 2;
+                        int b0 = MarchingCubesTables.edgeConnections[edgeIndex];
+                        int b1 = MarchingCubesTables.edgeConnections[edgeIndex + 1];
 
-                        int c0 = MarchingCubesTables.edgeConnections[edges[i + 2]][0];
-                        int c1 = MarchingCubesTables.edgeConnections[edges[i + 2]][1];
+                        edgeIndex = MarchingCubesTables.triTable[i + 2] * 2;
+                        int c0 = MarchingCubesTables.edgeConnections[edgeIndex];
+                        int c1 = MarchingCubesTables.edgeConnections[edgeIndex + 1];
 
                         Vector3 pos = new Vector3(x - m_ArraySize.x / 2f, y - Mathf.CeilToInt(m_PrimitiveRadius), z - m_ArraySize.z / 2f) * m_Scale;
 
@@ -208,12 +223,16 @@ public class MeshGenerator : MonoBehaviour
         {
             m_Normals[i] = m_Normals[i].normalized;
         }
+        m_Mesh.Clear();
+        m_Mesh.SetVertices(m_Vertices);
+        m_Mesh.SetNormals(m_Normals);
+        m_Mesh.SetTriangles(m_Indices, 0);
     }
 
     // Returns the adequate field from the 3D array.
-    private float GetFromGrid(int x, int y, int z)
+    private  float GetFromGrid(int x, int y, int z)
     {
-        return m_Grid[x + z * (m_ArraySize.x + 1) + y * (m_ArraySize.x + 1) * (m_ArraySize.z + 1)];
+        return m_Grid[x + (m_ArraySize.x + 1) * (z + y * (m_ArraySize.z + 1))];
     }
 
     // Returns rounded real world position of a marching cubes vertex.
@@ -241,10 +260,10 @@ public class MeshGenerator : MonoBehaviour
     // Updates the mesh comopnent.
     public void UpdateMesh()
     {
-        m_Mesh.Clear();
+        /*m_Mesh.Clear();
         m_Mesh.SetVertices(m_Vertices);
         m_Mesh.SetNormals(m_Normals);
-        m_Mesh.SetTriangles(m_Indices, 0);
+        m_Mesh.SetTriangles(m_Indices, 0);*/
     }
     
     // Subtracts a value from each point in the 3D array contained inside a sphere. The subtracted value is based on the distance of the certain point from the center of the sphere.
